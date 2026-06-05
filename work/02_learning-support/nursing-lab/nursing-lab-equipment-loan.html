@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบยืมคืนอุปกรณ์ห้องปฏิบัติการ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --ink: #183047;
+            --muted: #667085;
+            --blue: #2563eb;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --pink: #ec4899;
+            --red: #ef4444;
+            --surface: rgba(255, 255, 255, 0.92);
+            --line: rgba(24, 48, 71, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ink);
+            font-family: 'Sarabun', sans-serif;
+            background:
+                radial-gradient(circle at 8% 5%, rgba(6, 182, 212, 0.2), transparent 32rem),
+                radial-gradient(circle at 92% 8%, rgba(236, 72, 153, 0.16), transparent 30rem),
+                linear-gradient(135deg, #f8fbff 0%, #eef7ff 48%, #fff7ed 100%);
+        }
+
+        .app-shell {
+            width: min(1200px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 34px 0 48px;
+        }
+
+        .topbar, .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .topbar { margin-bottom: 22px; }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 58px;
+            height: 58px;
+            color: white;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: clamp(1.5rem, 3vw, 2.35rem);
+            font-weight: 700;
+            letter-spacing: 0;
+        }
+
+        .brand p, .panel-head p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 9px 16px;
+            color: #0f766e;
+            font-weight: 700;
+            border: 1px solid rgba(16, 185, 129, 0.22);
+            border-radius: 999px;
+            background: rgba(240, 253, 250, 0.95);
+            white-space: nowrap;
+        }
+
+        .nav-pills {
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: var(--surface);
+            box-shadow: 0 14px 36px rgba(24, 48, 71, 0.08);
+        }
+
+        .nav-pills .nav-link {
+            min-height: 44px;
+            color: var(--muted);
+            font-weight: 700;
+            border-radius: 13px;
+        }
+
+        .nav-pills .nav-link.active {
+            color: #fff;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            box-shadow: 0 12px 22px rgba(37, 99, 235, 0.25);
+        }
+
+        .panel {
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: var(--surface);
+            box-shadow: 0 22px 55px rgba(24, 48, 71, 0.12);
+            backdrop-filter: blur(16px);
+        }
+
+        .panel-head {
+            padding: 24px 26px;
+            color: #fff;
+            background: linear-gradient(135deg, #2563eb, #06b6d4 52%, #10b981);
+        }
+
+        .panel-head p { color: rgba(255, 255, 255, 0.84); }
+
+        .panel-head h2, .panel-head h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .form-zone { padding: 26px; }
+
+        .date-strip {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 18px;
+            border: 1px solid rgba(37, 99, 235, 0.16);
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(16, 185, 129, 0.09));
+        }
+
+        .date-card {
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.68);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.82);
+        }
+
+        .date-preview {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            color: #0f766e;
+            font-weight: 700;
+        }
+
+        .thai-date-wrap {
+            position: relative;
+        }
+
+        .thai-date-input {
+            cursor: pointer;
+            background-image: linear-gradient(45deg, transparent 50%, var(--blue) 50%), linear-gradient(135deg, var(--blue) 50%, transparent 50%);
+            background-position: calc(100% - 18px) 20px, calc(100% - 12px) 20px;
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+        }
+
+        .thai-calendar {
+            position: absolute;
+            z-index: 30;
+            top: calc(100% + 8px);
+            left: 0;
+            width: min(330px, calc(100vw - 56px));
+            padding: 14px;
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 20px 45px rgba(24, 48, 71, 0.2);
+        }
+
+        .thai-calendar[hidden] {
+            display: none;
+        }
+
+        .calendar-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .calendar-title {
+            color: #17406f;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .calendar-nav {
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 12px;
+            color: #17406f;
+            background: #eff6ff;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .calendar-weekday {
+            color: var(--muted);
+            font-size: 0.84rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .calendar-day {
+            display: grid;
+            place-items: center;
+            min-height: 38px;
+            border: 0;
+            border-radius: 12px;
+            color: var(--ink);
+            background: #f8fafc;
+            font-weight: 700;
+        }
+
+        .calendar-day:hover {
+            color: #fff;
+            background: var(--cyan);
+        }
+
+        .calendar-day.is-selected {
+            color: #fff;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
+        }
+
+        .calendar-day.is-today {
+            outline: 2px solid rgba(16, 185, 129, 0.42);
+            outline-offset: 1px;
+        }
+
+        .calendar-empty {
+            min-height: 38px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 26px 0 16px;
+            color: #17406f;
+            font-size: 1.08rem;
+            font-weight: 700;
+        }
+
+        .section-title:first-child { margin-top: 0; }
+
+        .section-title span {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            color: white;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--pink), var(--yellow));
+        }
+
+        .form-label {
+            color: #2d4059;
+            font-weight: 700;
+        }
+
+        .form-control, .form-select {
+            min-height: 46px;
+            border: 1px solid rgba(24, 48, 71, 0.16);
+            border-radius: 12px;
+            color: var(--ink);
+            background-color: rgba(255, 255, 255, 0.96);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: rgba(6, 182, 212, 0.75);
+            box-shadow: 0 0 0 0.22rem rgba(6, 182, 212, 0.14);
+        }
+
+        .borrow-items {
+            display: grid;
+            gap: 12px;
+        }
+
+        .borrow-item {
+            display: grid;
+            grid-template-columns: minmax(180px, 1.4fr) minmax(96px, 0.55fr) minmax(110px, 0.7fr) minmax(150px, 1fr) 46px;
+            gap: 12px;
+            align-items: end;
+            padding: 14px;
+            border: 1px solid rgba(24, 48, 71, 0.12);
+            border-radius: 16px;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .item-remove {
+            display: grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            border: 0;
+            border-radius: 13px;
+            color: #b91c1c;
+            background: #fee2e2;
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 34px;
+        }
+
+        .btn {
+            min-height: 46px;
+            border-radius: 13px;
+            font-weight: 700;
+        }
+
+        .btn-primary {
+            border: 0;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            box-shadow: 0 14px 24px rgba(37, 99, 235, 0.22);
+        }
+
+        .btn-secondary {
+            border: 0;
+            color: #334155;
+            background: #e2e8f0;
+        }
+
+        .btn-success {
+            border: 0;
+            background: linear-gradient(135deg, var(--green), #14b8a6);
+            box-shadow: 0 14px 24px rgba(16, 185, 129, 0.2);
+        }
+
+        .metric-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .metric {
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.78);
+        }
+
+        .metric strong {
+            display: block;
+            color: var(--ink);
+            font-size: 1.8rem;
+            line-height: 1;
+        }
+
+        .metric span {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .chart-card, .data-card {
+            height: 100%;
+            padding: 22px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.86);
+            box-shadow: 0 16px 35px rgba(24, 48, 71, 0.08);
+        }
+
+        .chart-card h5, .data-card h5 {
+            margin-bottom: 18px;
+            color: #17406f;
+            font-weight: 700;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+
+        .list-stat {
+            display: grid;
+            gap: 10px;
+        }
+
+        .list-stat div {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(37, 99, 235, 0.06);
+            font-weight: 700;
+        }
+
+        .dashboard-state {
+            display: none;
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            color: #92400e;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            font-weight: 700;
+        }
+
+        .table-responsive {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+        }
+
+        .table {
+            margin: 0;
+            vertical-align: middle;
+        }
+
+        .table thead th {
+            color: #17406f;
+            background: #eff6ff;
+            white-space: nowrap;
+        }
+
+        .table tbody td {
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 992px) {
+            .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .topbar, .panel-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-pill { white-space: normal; }
+            .date-strip, .metric-row { grid-template-columns: 1fr; }
+            .borrow-item { grid-template-columns: 1fr; }
+            .item-remove { width: 100%; }
+            .form-zone, .panel-head { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<main class="app-shell">
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true">
+                <i class="fas fa-flask fa-lg"></i>
+            </div>
+            <div>
+                <h1>ระบบยืมคืนอุปกรณ์ห้องปฏิบัติการ</h1>
+                <p>จัดเก็บคำขอยืมและติดตามข้อมูลจาก Google Sheet</p>
+            </div>
+        </div>
+    </header>
+
+    <ul class="nav nav-pills justify-content-center mb-4" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pills-form-tab" data-bs-toggle="pill" data-bs-target="#pills-form" type="button" role="tab">
+                <i class="fas fa-pen-to-square me-2"></i>ฟอร์มยืมอุปกรณ์
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pills-supply-tab" data-bs-toggle="pill" data-bs-target="#pills-supply" type="button" role="tab">
+                <i class="fas fa-notes-medical me-2"></i>เบิกวัสดุสิ้นเปลือง
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pills-dashboard-tab" data-bs-toggle="pill" data-bs-target="#pills-dashboard" type="button" role="tab">
+                <i class="fas fa-chart-pie me-2"></i>แดชบอร์ดสรุปผล
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pills-tabContent">
+        <section class="tab-pane fade show active" id="pills-form" role="tabpanel">
+            <div class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>บันทึกคำขอยืมอุปกรณ์</h2>
+                        <p>เลือกวันที่จากปฏิทิน แล้วกรอกข้อมูลผู้ยืมให้ครบถ้วน</p>
+                    </div>
+                    <i class="fas fa-clipboard-check fa-2x" aria-hidden="true"></i>
+                </div>
+
+                <form id="borrowForm" class="form-zone">
+                    <div class="date-strip">
+                        <div class="date-card">
+                            <label class="form-label" for="borrowDateCalendar">วันที่ขอยืม</label>
+                            <div class="thai-date-wrap">
+                                <input type="text" class="form-control thai-date-input" id="borrowDateCalendar" readonly required placeholder="เลือกวันที่">
+                            </div>
+                            <div class="date-preview">
+                                <i class="fas fa-calendar-day"></i>
+                                <span id="borrowDatePreview">-</span>
+                            </div>
+                            <input type="hidden" id="borrowDate" required>
+                        </div>
+                        <div class="date-card">
+                            <label class="form-label" for="returnDueDateCalendar">กำหนดคืน</label>
+                            <div class="thai-date-wrap">
+                                <input type="text" class="form-control thai-date-input" id="returnDueDateCalendar" readonly required placeholder="เลือกวันที่">
+                            </div>
+                            <div class="date-preview">
+                                <i class="fas fa-calendar-check"></i>
+                                <span id="returnDueDatePreview">-</span>
+                            </div>
+                            <input type="hidden" id="returnDueDate" required>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span><i class="fas fa-user"></i></span>
+                        ข้อมูลผู้ยืม
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="borrowerName">ชื่อ-นามสกุลผู้ยืม</label>
+                            <input type="text" class="form-control" id="borrowerName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="phoneNumber">เบอร์โทรศัพท์</label>
+                            <input type="tel" class="form-control" id="phoneNumber" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="userStatus">สถานะผู้ใช้งาน</label>
+                            <select class="form-select" id="userStatus" required>
+                                <option value="">เลือกสถานะ...</option>
+                                <option value="นักศึกษา">นักศึกษา</option>
+                                <option value="อาจารย์">อาจารย์</option>
+                                <option value="บุคลากร">บุคลากร</option>
+                                <option value="บุคคลภายนอก">บุคคลภายนอก</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="program">สาขาวิชา/โปรแกรม</label>
+                            <input type="text" class="form-control" id="program">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="yearLevel">ชั้นปี</label>
+                            <select class="form-select" id="yearLevel">
+                                <option value="">เลือกชั้นปี...</option>
+                                <option value="ปี 1">ปี 1</option>
+                                <option value="ปี 2">ปี 2</option>
+                                <option value="ปี 3">ปี 3</option>
+                                <option value="ปี 4">ปี 4</option>
+                                <option value="PN">PN</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label" for="department">ภาควิชา/คณะ</label>
+                            <input type="text" class="form-control" id="department" required>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span><i class="fas fa-box-open"></i></span>
+                        ข้อมูลการยืม
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="borrowPurpose">วัตถุประสงค์</label>
+                            <input type="text" class="form-control" id="borrowPurpose" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="activityName">ชื่อกิจกรรม/วิชา</label>
+                            <input type="text" class="form-control" id="activityName">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label" for="useLocation">สถานที่นำไปใช้</label>
+                            <input type="text" class="form-control" id="useLocation" required>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span><i class="fas fa-list-check"></i></span>
+                        รายการอุปกรณ์ที่ต้องการยืม
+                    </div>
+                    <div class="borrow-items" id="borrowItems"></div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-success" id="addBorrowItem">
+                            <i class="fas fa-plus me-2"></i>เพิ่มรายการ
+                        </button>
+                    </div>
+
+                    <div class="action-row">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-save me-2"></i>บันทึกข้อมูลการยืม
+                        </button>
+                        <button type="reset" class="btn btn-secondary btn-lg px-5">
+                            <i class="fas fa-eraser me-2"></i>ล้างฟอร์ม
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="tab-pane fade" id="pills-supply" role="tabpanel">
+            <div class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>เบิกวัสดุสิ้นเปลืองทางการพยาบาล</h2>
+                        <p>บันทึกการเบิกวัสดุสำหรับการเรียนการสอน ฝึกปฏิบัติ และกิจกรรมทางการพยาบาล</p>
+                    </div>
+                    <i class="fas fa-briefcase-medical fa-2x" aria-hidden="true"></i>
+                </div>
+
+                <form id="supplyForm" class="form-zone">
+                    <div class="date-strip">
+                        <div class="date-card">
+                            <label class="form-label" for="supplyWithdrawDateCalendar">วันที่เบิก</label>
+                            <div class="thai-date-wrap">
+                                <input type="text" class="form-control thai-date-input" id="supplyWithdrawDateCalendar" readonly required placeholder="เลือกวันที่">
+                            </div>
+                            <div class="date-preview">
+                                <i class="fas fa-calendar-plus"></i>
+                                <span id="supplyWithdrawDatePreview">-</span>
+                            </div>
+                            <input type="hidden" id="supplyWithdrawDate" required>
+                        </div>
+                        <div class="date-card">
+                            <label class="form-label" for="supplyCategory">ประเภทวัสดุ</label>
+                            <select class="form-select" id="supplyCategory" required>
+                                <option value="">เลือกประเภท...</option>
+                                <option value="วัสดุทำแผล">วัสดุทำแผล</option>
+                                <option value="วัสดุป้องกันการติดเชื้อ">วัสดุป้องกันการติดเชื้อ</option>
+                                <option value="วัสดุฉีดยาและให้สารน้ำ">วัสดุฉีดยาและให้สารน้ำ</option>
+                                <option value="วัสดุตรวจประเมินผู้ป่วย">วัสดุตรวจประเมินผู้ป่วย</option>
+                                <option value="วัสดุฝึกปฏิบัติการพยาบาล">วัสดุฝึกปฏิบัติการพยาบาล</option>
+                                <option value="อื่น ๆ">อื่น ๆ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span><i class="fas fa-user-nurse"></i></span>
+                        ข้อมูลผู้เบิก
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="supplyRequesterName">ชื่อ-นามสกุลผู้เบิก</label>
+                            <input type="text" class="form-control" id="supplyRequesterName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="supplyPhoneNumber">เบอร์โทรศัพท์</label>
+                            <input type="tel" class="form-control" id="supplyPhoneNumber" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="supplyUserStatus">สถานะผู้ใช้งาน</label>
+                            <select class="form-select" id="supplyUserStatus" required>
+                                <option value="">เลือกสถานะ...</option>
+                                <option value="นักศึกษา">นักศึกษา</option>
+                                <option value="อาจารย์">อาจารย์</option>
+                                <option value="บุคลากร">บุคลากร</option>
+                                <option value="บุคคลภายนอก">บุคคลภายนอก</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="supplyProgram">สาขาวิชา/โปรแกรม</label>
+                            <input type="text" class="form-control" id="supplyProgram">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="supplyYearLevel">ชั้นปี</label>
+                            <select class="form-select" id="supplyYearLevel">
+                                <option value="">เลือกชั้นปี...</option>
+                                <option value="ปี 1">ปี 1</option>
+                                <option value="ปี 2">ปี 2</option>
+                                <option value="ปี 3">ปี 3</option>
+                                <option value="ปี 4">ปี 4</option>
+                                <option value="PN">PN</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label" for="supplyDepartment">ภาควิชา/คณะ</label>
+                            <input type="text" class="form-control" id="supplyDepartment" required>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <span><i class="fas fa-boxes-stacked"></i></span>
+                        รายละเอียดวัสดุสิ้นเปลือง
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label" for="supplyName">ชื่อวัสดุ</label>
+                            <input type="text" class="form-control" id="supplyName" list="nursingSupplyList" required>
+                            <datalist id="nursingSupplyList">
+                                <option value="ถุงมือสะอาด">
+                                <option value="ถุงมือปราศจากเชื้อ">
+                                <option value="หน้ากากอนามัย">
+                                <option value="ผ้าก๊อซ">
+                                <option value="สำลี">
+                                <option value="แอลกอฮอล์แพด">
+                                <option value="กระบอกฉีดยา">
+                                <option value="เข็มฉีดยา">
+                                <option value="ชุดให้น้ำเกลือ">
+                                <option value="พลาสเตอร์ปิดแผล">
+                            </datalist>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" for="supplyQuantity">จำนวน</label>
+                            <input type="number" class="form-control" id="supplyQuantity" min="1" step="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" for="supplyUnit">หน่วยนับ</label>
+                            <select class="form-select" id="supplyUnit" required>
+                                <option value="">เลือก...</option>
+                                <option value="ชิ้น">ชิ้น</option>
+                                <option value="อัน">อัน</option>
+                                <option value="คู่">คู่</option>
+                                <option value="กล่อง">กล่อง</option>
+                                <option value="แพ็ค">แพ็ค</option>
+                                <option value="ม้วน">ม้วน</option>
+                                <option value="ชุด">ชุด</option>
+                                <option value="ขวด">ขวด</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="supplyUseLocation">สถานที่นำไปใช้</label>
+                            <input type="text" class="form-control" id="supplyUseLocation" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="supplyPurpose">วัตถุประสงค์การเบิก</label>
+                            <input type="text" class="form-control" id="supplyPurpose" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="supplyRemark">หมายเหตุ</label>
+                            <input type="text" class="form-control" id="supplyRemark">
+                        </div>
+                    </div>
+
+                    <div class="action-row">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-save me-2"></i>บันทึกข้อมูลการเบิก
+                        </button>
+                        <button type="reset" class="btn btn-secondary btn-lg px-5">
+                            <i class="fas fa-eraser me-2"></i>ล้างฟอร์ม
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="tab-pane fade" id="pills-dashboard" role="tabpanel">
+            <div class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h3>แดชบอร์ดสรุปผล</h3>
+                        <p>แสดงข้อมูลจริงจาก Google Sheet เท่านั้น</p>
+                    </div>
+                    <button class="btn btn-success" onclick="loadDashboardData()">
+                        <i class="fas fa-sync-alt me-2"></i>อัปเดตข้อมูล
+                    </button>
+                </div>
+                <div class="form-zone">
+                    <div class="dashboard-state" id="dashboardState"></div>
+
+                    <div class="metric-row">
+                        <div class="metric">
+                            <strong id="metricBorrow">0</strong>
+                            <span>รายการยืมทั้งหมด</span>
+                        </div>
+                        <div class="metric">
+                            <strong id="metricActive">0</strong>
+                            <span>รายการที่ใช้งานอยู่</span>
+                        </div>
+                        <div class="metric">
+                            <strong id="metricCompleted">0</strong>
+                            <span>รายการคืนแล้ว</span>
+                        </div>
+                        <div class="metric">
+                            <strong id="metricOverdue">0</strong>
+                            <span>รายการเกินกำหนด</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-row">
+                        <div class="metric">
+                            <strong id="metricSupply">0</strong>
+                            <span>รายการเบิกวัสดุ</span>
+                        </div>
+                        <div class="metric">
+                            <strong id="metricSupplyQty">0</strong>
+                            <span>จำนวนวัสดุที่เบิก</span>
+                        </div>
+                        <div class="metric">
+                            <strong id="metricSupplyTypes">0</strong>
+                            <span>ประเภทวัสดุ</span>
+                        </div>
+                        <div class="metric">
+                            <strong id="metricSupplyTop">-</strong>
+                            <span>วัสดุที่เบิกมากที่สุด</span>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="chart-card">
+                                <h5>สถิติการยืมรายเดือน</h5>
+                                <div class="chart-container">
+                                    <canvas id="barChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="chart-card">
+                                <h5>กลุ่มผู้ใช้งาน</h5>
+                                <div class="chart-container">
+                                    <canvas id="pieChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="chart-card">
+                                <h5>สถานะการอนุมัติ</h5>
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="approvalChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="chart-card">
+                                <h5>สถานะการคืนอุปกรณ์</h5>
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="doughnutChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="chart-card">
+                                <h5>ชั้นปี</h5>
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="yearLevelChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="data-card">
+                                <h5>ภาควิชา/คณะ ที่ยืมมากที่สุด</h5>
+                                <div class="list-stat" id="topDepartments"></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="data-card">
+                                <h5>สาขาวิชา/โปรแกรม ที่ยืมมากที่สุด</h5>
+                                <div class="list-stat" id="topPrograms"></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-8">
+                            <div class="chart-card">
+                                <h5>สถิติการเบิกวัสดุรายเดือน</h5>
+                                <div class="chart-container">
+                                    <canvas id="supplyMonthChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="chart-card">
+                                <h5>ประเภทวัสดุสิ้นเปลือง</h5>
+                                <div class="chart-container">
+                                    <canvas id="supplyCategoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="data-card">
+                                <h5>วัสดุสิ้นเปลืองที่เบิกมากที่สุด</h5>
+                                <div class="list-stat" id="topSupplies"></div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="data-card">
+                                <h5>รายการเบิกวัสดุล่าสุดจาก Google Sheet</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>รหัส</th>
+                                                <th>วันที่บันทึก</th>
+                                                <th>วันที่เบิก</th>
+                                                <th>ผู้เบิก</th>
+                                                <th>วัสดุ</th>
+                                                <th>ประเภท</th>
+                                                <th>จำนวน</th>
+                                                <th>หน่วย</th>
+                                                <th>ภาควิชา/คณะ</th>
+                                                <th>อนุมัติ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recentSupplyRows">
+                                            <tr><td colspan="10" class="text-center text-muted">กำลังโหลดข้อมูล...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="data-card">
+                                <h5>รายการล่าสุดจาก Google Sheet</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>รหัส</th>
+                                                <th>วันที่บันทึก</th>
+                                                <th>ผู้ยืม</th>
+                                                <th>สถานะ</th>
+                                                <th>ชั้นปี</th>
+                                                <th>ภาควิชา/คณะ</th>
+                                                <th>วันที่ขอยืม</th>
+                                                <th>กำหนดคืน</th>
+                                                <th>อนุมัติ</th>
+                                                <th>การคืน</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recentBorrowRows">
+                                            <tr><td colspan="10" class="text-center text-muted">กำลังโหลดข้อมูล...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-3 text-muted fw-semibold" id="lastUpdated">อัปเดตล่าสุด: -</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwo-lfyvzIuliqECFxjl2tFqXkw6Gd7BKYNqF8YFrzWG007cKm7fhKM_YitOR9e7PHQ/exec";
+    const chartColors = ['#2563eb', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6'];
+    const thaiMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const thaiWeekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+    const thaiDatePickers = {};
+    let borrowItemIndex = 0;
+    let barChartInst, pieChartInst, doughnutChartInst, approvalChartInst, yearLevelChartInst, supplyMonthChartInst, supplyCategoryChartInst;
+
+    function padDatePart(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function toThaiDate(date) {
+        if (!date) return '';
+        return `${padDatePart(date.getDate())}/${padDatePart(date.getMonth() + 1)}/${date.getFullYear() + 543}`;
+    }
+
+    function setDefaultCalendarDate(inputId, hiddenId, previewId, offsetDays) {
+        const date = new Date();
+        date.setDate(date.getDate() + offsetDays);
+        thaiDatePickers[inputId] = {
+            hiddenId,
+            previewId,
+            selectedDate: date,
+            viewYear: date.getFullYear(),
+            viewMonth: date.getMonth()
+        };
+        syncCalendarDate(inputId, hiddenId, previewId);
+    }
+
+    function syncCalendarDate(inputId, hiddenId, previewId) {
+        const picker = thaiDatePickers[inputId];
+        const thaiDate = toThaiDate(picker.selectedDate);
+        document.getElementById(inputId).value = formatThaiDateDisplay(picker.selectedDate);
+        document.getElementById(hiddenId).value = thaiDate;
+        document.getElementById(previewId).textContent = thaiDate || '-';
+        renderThaiCalendar(inputId);
+    }
+
+    function formatThaiDateDisplay(date) {
+        if (!date) return '';
+        return `${date.getDate()} ${thaiMonths[date.getMonth()]} ${date.getFullYear() + 543}`;
+    }
+
+    function openThaiCalendar(inputId) {
+        closeThaiCalendars(inputId);
+        renderThaiCalendar(inputId);
+        const popup = document.getElementById(`${inputId}Popup`);
+        if (popup) popup.hidden = false;
+    }
+
+    function closeThaiCalendars(exceptInputId = '') {
+        Object.keys(thaiDatePickers).forEach((inputId) => {
+            if (inputId === exceptInputId) return;
+            const popup = document.getElementById(`${inputId}Popup`);
+            if (popup) popup.hidden = true;
+        });
+    }
+
+    function renderThaiCalendar(inputId) {
+        const picker = thaiDatePickers[inputId];
+        if (!picker) return;
+
+        const input = document.getElementById(inputId);
+        const wrap = input.closest('.thai-date-wrap');
+        let popup = document.getElementById(`${inputId}Popup`);
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.className = 'thai-calendar';
+            popup.id = `${inputId}Popup`;
+            popup.hidden = true;
+            wrap.appendChild(popup);
+        }
+
+        const firstDay = new Date(picker.viewYear, picker.viewMonth, 1).getDay();
+        const totalDays = new Date(picker.viewYear, picker.viewMonth + 1, 0).getDate();
+        const today = new Date();
+        const days = [];
+
+        for (let i = 0; i < firstDay; i++) {
+            days.push('<div class="calendar-empty"></div>');
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const isSelected = picker.selectedDate &&
+                picker.selectedDate.getFullYear() === picker.viewYear &&
+                picker.selectedDate.getMonth() === picker.viewMonth &&
+                picker.selectedDate.getDate() === day;
+            const isToday = today.getFullYear() === picker.viewYear &&
+                today.getMonth() === picker.viewMonth &&
+                today.getDate() === day;
+            days.push(`<button type="button" class="calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}" data-day="${day}">${day}</button>`);
+        }
+
+        popup.innerHTML = `
+            <div class="calendar-head">
+                <button type="button" class="calendar-nav" data-action="prev" aria-label="เดือนก่อนหน้า"><i class="fas fa-chevron-left"></i></button>
+                <div class="calendar-title">${thaiMonths[picker.viewMonth]} ${picker.viewYear + 543}</div>
+                <button type="button" class="calendar-nav" data-action="next" aria-label="เดือนถัดไป"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="calendar-grid">
+                ${thaiWeekdays.map(day => `<div class="calendar-weekday">${day}</div>`).join('')}
+                ${days.join('')}
+            </div>
+        `;
+
+        popup.querySelectorAll('[data-action]').forEach((button) => {
+            button.addEventListener('click', function(event) {
+                event.stopPropagation();
+                const direction = this.dataset.action === 'next' ? 1 : -1;
+                const nextView = new Date(picker.viewYear, picker.viewMonth + direction, 1);
+                picker.viewYear = nextView.getFullYear();
+                picker.viewMonth = nextView.getMonth();
+                renderThaiCalendar(inputId);
+                document.getElementById(`${inputId}Popup`).hidden = false;
+            });
+        });
+
+        popup.querySelectorAll('[data-day]').forEach((button) => {
+            button.addEventListener('click', function(event) {
+                event.stopPropagation();
+                picker.selectedDate = new Date(picker.viewYear, picker.viewMonth, Number(this.dataset.day));
+                syncCalendarDate(inputId, picker.hiddenId, picker.previewId);
+                document.getElementById(`${inputId}Popup`).hidden = true;
+            });
+        });
+    }
+
+    function initCalendarDates() {
+        setDefaultCalendarDate('borrowDateCalendar', 'borrowDate', 'borrowDatePreview', 0);
+        setDefaultCalendarDate('returnDueDateCalendar', 'returnDueDate', 'returnDueDatePreview', 7);
+        setDefaultCalendarDate('supplyWithdrawDateCalendar', 'supplyWithdrawDate', 'supplyWithdrawDatePreview', 0);
+    }
+
+    function addBorrowItemRow(item = {}) {
+        borrowItemIndex += 1;
+        const row = document.createElement('div');
+        row.className = 'borrow-item';
+        row.dataset.itemIndex = borrowItemIndex;
+        row.innerHTML = `
+            <div>
+                <label class="form-label" for="borrowItemName${borrowItemIndex}">ชื่ออุปกรณ์</label>
+                <input type="text" class="form-control borrow-item-name" id="borrowItemName${borrowItemIndex}" value="${escapeHtml(item.equipmentName || '')}" required>
+            </div>
+            <div>
+                <label class="form-label" for="borrowItemQty${borrowItemIndex}">จำนวน</label>
+                <input type="number" class="form-control borrow-item-quantity" id="borrowItemQty${borrowItemIndex}" min="1" step="1" value="${escapeHtml(item.quantity || '1')}" required>
+            </div>
+            <div>
+                <label class="form-label" for="borrowItemUnit${borrowItemIndex}">หน่วย</label>
+                <input type="text" class="form-control borrow-item-unit" id="borrowItemUnit${borrowItemIndex}" value="${escapeHtml(item.unit || 'ชิ้น')}" required>
+            </div>
+            <div>
+                <label class="form-label" for="borrowItemRemark${borrowItemIndex}">หมายเหตุ</label>
+                <input type="text" class="form-control borrow-item-remark" id="borrowItemRemark${borrowItemIndex}" value="${escapeHtml(item.remark || '')}">
+            </div>
+            <button type="button" class="item-remove" aria-label="ลบรายการ">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        document.getElementById('borrowItems').appendChild(row);
+        updateBorrowItemRemoveButtons();
+    }
+
+    function resetBorrowItems() {
+        const container = document.getElementById('borrowItems');
+        container.innerHTML = '';
+        borrowItemIndex = 0;
+        addBorrowItemRow();
+    }
+
+    function updateBorrowItemRemoveButtons() {
+        const rows = document.querySelectorAll('.borrow-item');
+        rows.forEach(row => {
+            row.querySelector('.item-remove').disabled = rows.length === 1;
+        });
+    }
+
+    function collectBorrowItems() {
+        return Array.from(document.querySelectorAll('.borrow-item')).map(row => ({
+            equipmentName: row.querySelector('.borrow-item-name').value.trim(),
+            quantity: row.querySelector('.borrow-item-quantity').value,
+            unit: row.querySelector('.borrow-item-unit').value.trim(),
+            remark: row.querySelector('.borrow-item-remark').value.trim()
+        })).filter(item => item.equipmentName && Number(item.quantity) > 0 && item.unit);
+    }
+
+    document.getElementById('borrowDateCalendar').addEventListener('click', function() {
+        openThaiCalendar('borrowDateCalendar');
+    });
+
+    document.getElementById('returnDueDateCalendar').addEventListener('click', function() {
+        openThaiCalendar('returnDueDateCalendar');
+    });
+
+    document.getElementById('supplyWithdrawDateCalendar').addEventListener('click', function() {
+        openThaiCalendar('supplyWithdrawDateCalendar');
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.thai-date-wrap')) {
+            closeThaiCalendars();
+        }
+    });
+
+    document.getElementById('borrowForm').addEventListener('reset', function() {
+        setTimeout(function() {
+            initCalendarDates();
+            resetBorrowItems();
+        }, 0);
+    });
+
+    document.getElementById('supplyForm').addEventListener('reset', function() {
+        setTimeout(initCalendarDates, 0);
+    });
+
+    document.getElementById('addBorrowItem').addEventListener('click', function() {
+        addBorrowItemRow();
+    });
+
+    document.getElementById('borrowItems').addEventListener('click', function(event) {
+        const removeButton = event.target.closest('.item-remove');
+        if (!removeButton) return;
+        removeButton.closest('.borrow-item').remove();
+        updateBorrowItemRemoveButtons();
+    });
+
+    document.getElementById('borrowForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const borrowItems = collectBorrowItems();
+        if (!borrowItems.length) {
+            Swal.fire('กรุณาตรวจสอบข้อมูล', 'กรุณาเพิ่มรายการอุปกรณ์อย่างน้อย 1 รายการ', 'warning');
+            return;
+        }
+
+        const formData = {
+            borrowerName: document.getElementById('borrowerName').value,
+            phoneNumber: document.getElementById('phoneNumber').value,
+            userStatus: document.getElementById('userStatus').value,
+            program: document.getElementById('program').value,
+            yearLevel: document.getElementById('yearLevel').value,
+            department: document.getElementById('department').value,
+            borrowPurpose: document.getElementById('borrowPurpose').value,
+            activityName: document.getElementById('activityName').value,
+            useLocation: document.getElementById('useLocation').value,
+            borrowDate: document.getElementById('borrowDate').value,
+            returnDueDate: document.getElementById('returnDueDate').value,
+            items: borrowItems
+        };
+
+        Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'saveBorrow', data: formData })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success') {
+                Swal.fire('สำเร็จ!', 'บันทึกข้อมูลการยืมเรียบร้อยแล้ว<br>รหัส: ' + result.requestId, 'success');
+                document.getElementById('borrowForm').reset();
+                loadDashboardData();
+            } else {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกได้: ' + result.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อ Google Sheet ได้', 'error');
+        });
+    });
+
+    document.getElementById('supplyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = {
+            withdrawDate: document.getElementById('supplyWithdrawDate').value,
+            requesterName: document.getElementById('supplyRequesterName').value,
+            phoneNumber: document.getElementById('supplyPhoneNumber').value,
+            userStatus: document.getElementById('supplyUserStatus').value,
+            program: document.getElementById('supplyProgram').value,
+            yearLevel: document.getElementById('supplyYearLevel').value,
+            department: document.getElementById('supplyDepartment').value,
+            purpose: document.getElementById('supplyPurpose').value,
+            useLocation: document.getElementById('supplyUseLocation').value,
+            supplyName: document.getElementById('supplyName').value,
+            supplyCategory: document.getElementById('supplyCategory').value,
+            quantity: document.getElementById('supplyQuantity').value,
+            unit: document.getElementById('supplyUnit').value,
+            remark: document.getElementById('supplyRemark').value
+        };
+
+        Swal.fire({ title: 'กำลังบันทึกข้อมูลการเบิก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'saveSupply', data: formData })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success') {
+                Swal.fire('สำเร็จ!', 'บันทึกข้อมูลการเบิกวัสดุเรียบร้อยแล้ว<br>รหัส: ' + result.withdrawId, 'success');
+                document.getElementById('supplyForm').reset();
+                loadDashboardData();
+            } else {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกได้: ' + result.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Supply error:', error);
+            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อ Google Sheet ได้', 'error');
+        });
+    });
+
+    function loadDashboardData() {
+        setDashboardState('กำลังดึงข้อมูลจาก Google Sheet...');
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getDashboard' })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.status !== 'success') {
+                throw new Error(result.message || 'ไม่สามารถดึงข้อมูลได้');
+            }
+            setDashboardState('');
+            renderDashboard(result.data);
+        })
+        .catch(error => {
+            console.error('Dashboard error:', error);
+            clearDashboard();
+            setDashboardState('ไม่สามารถดึงข้อมูลจาก Google Sheet ได้ กรุณาตรวจสอบ Web App และสิทธิ์การเข้าถึง');
+        });
+    }
+
+    function setDashboardState(message) {
+        const state = document.getElementById('dashboardState');
+        state.textContent = message;
+        state.style.display = message ? 'block' : 'none';
+    }
+
+    function renderDashboard(data) {
+        destroyCharts();
+
+        document.getElementById('metricBorrow').textContent = formatNumber(data.totalBorrow);
+        document.getElementById('metricActive').textContent = formatNumber(data.activeCount);
+        document.getElementById('metricCompleted').textContent = formatNumber(data.completedCount);
+        document.getElementById('metricOverdue').textContent = formatNumber(data.overdueCount);
+        document.getElementById('lastUpdated').textContent = `อัปเดตล่าสุด: ${data.lastUpdated || '-'}`;
+
+        barChartInst = createChart('barChart', 'bar', data.months, [{
+            label: 'จำนวนการยืม',
+            data: data.borrowCounts,
+            backgroundColor: chartColors,
+            borderRadius: 10
+        }], { legend: false });
+
+        pieChartInst = createChart('pieChart', 'pie', data.userGroupLabels, [{
+            data: data.userGroups,
+            backgroundColor: chartColors,
+            borderColor: '#ffffff',
+            borderWidth: 3
+        }]);
+
+        approvalChartInst = createChart('approvalChart', 'doughnut', data.approvalStatusLabels, [{
+            data: data.approvalStatus,
+            backgroundColor: chartColors,
+            borderColor: '#ffffff',
+            borderWidth: 3
+        }]);
+
+        doughnutChartInst = createChart('doughnutChart', 'doughnut', data.returnStatusLabels, [{
+            data: data.returnStatus,
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#2563eb', '#8b5cf6'],
+            borderColor: '#ffffff',
+            borderWidth: 3
+        }]);
+
+        yearLevelChartInst = createChart('yearLevelChart', 'bar', data.yearLevelLabels, [{
+            label: 'จำนวนรายการ',
+            data: data.yearLevels,
+            backgroundColor: chartColors,
+            borderRadius: 10
+        }], { legend: false, horizontal: true });
+
+        renderTopList('topDepartments', data.topDepartments);
+        renderTopList('topPrograms', data.topPrograms);
+        renderSupplyDashboard(data.supply || {});
+        renderRecentRows(data.recentBorrows);
+    }
+
+    function renderSupplyDashboard(supply) {
+        const topSupplyName = supply.topSupplies && supply.topSupplies.length ? supply.topSupplies[0].label : '-';
+        document.getElementById('metricSupply').textContent = formatNumber(supply.totalSupply);
+        document.getElementById('metricSupplyQty').textContent = formatNumber(supply.totalQuantity);
+        document.getElementById('metricSupplyTypes').textContent = formatNumber((supply.categoryLabels || []).length);
+        document.getElementById('metricSupplyTop').textContent = topSupplyName;
+
+        supplyMonthChartInst = createChart('supplyMonthChart', 'bar', supply.supplyMonthLabels, [{
+            label: 'จำนวนรายการเบิก',
+            data: supply.supplyMonthCounts || [],
+            backgroundColor: chartColors,
+            borderRadius: 10
+        }], { legend: false });
+
+        supplyCategoryChartInst = createChart('supplyCategoryChart', 'pie', supply.categoryLabels, [{
+            data: supply.categoryCounts || [],
+            backgroundColor: chartColors,
+            borderColor: '#ffffff',
+            borderWidth: 3
+        }]);
+
+        renderTopList('topSupplies', supply.topSupplies || []);
+        renderRecentSupplyRows(supply.recentSupplies || []);
+    }
+
+    function createChart(canvasId, type, labels, datasets, config = {}) {
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: config.legend !== false, position: 'bottom' }
+            }
+        };
+
+        if (type === 'bar') {
+            options.indexAxis = config.horizontal ? 'y' : 'x';
+            options.scales = {
+                x: { beginAtZero: true, ticks: { precision: 0 } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            };
+        }
+
+        if (type === 'doughnut') {
+            options.cutout = '68%';
+        }
+
+        return new Chart(document.getElementById(canvasId).getContext('2d'), {
+            type,
+            data: { labels: labels || [], datasets },
+            options
+        });
+    }
+
+    function renderTopList(elementId, rows = []) {
+        const element = document.getElementById(elementId);
+        if (!rows.length) {
+            element.innerHTML = '<div><span>ไม่มีข้อมูล</span><strong>0</strong></div>';
+            return;
+        }
+
+        element.innerHTML = rows.map(row => `
+            <div>
+                <span>${escapeHtml(row.label || 'ไม่ระบุ')}</span>
+                <strong>${formatNumber(row.value)}</strong>
+            </div>
+        `).join('');
+    }
+
+    function renderRecentRows(rows = []) {
+        const tbody = document.getElementById('recentBorrowRows');
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">ไม่มีข้อมูลจาก Google Sheet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map(row => `
+            <tr>
+                <td>${escapeHtml(row.requestId)}</td>
+                <td>${escapeHtml(row.requestDate)}</td>
+                <td>${escapeHtml(row.borrowerName)}</td>
+                <td>${escapeHtml(row.userStatus)}</td>
+                <td>${escapeHtml(row.yearLevel)}</td>
+                <td>${escapeHtml(row.department)}</td>
+                <td>${escapeHtml(row.borrowDate)}</td>
+                <td>${escapeHtml(row.returnDueDate)}</td>
+                <td>${escapeHtml(row.approvalStatus)}</td>
+                <td>${escapeHtml(row.returnStatus)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderRecentSupplyRows(rows = []) {
+        const tbody = document.getElementById('recentSupplyRows');
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">ไม่มีข้อมูลการเบิกวัสดุจาก Google Sheet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map(row => `
+            <tr>
+                <td>${escapeHtml(row.withdrawId)}</td>
+                <td>${escapeHtml(row.requestDate)}</td>
+                <td>${escapeHtml(row.withdrawDate)}</td>
+                <td>${escapeHtml(row.requesterName)}</td>
+                <td>${escapeHtml(row.supplyName)}</td>
+                <td>${escapeHtml(row.supplyCategory)}</td>
+                <td>${escapeHtml(row.quantity)}</td>
+                <td>${escapeHtml(row.unit)}</td>
+                <td>${escapeHtml(row.department)}</td>
+                <td>${escapeHtml(row.approvalStatus)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function clearDashboard() {
+        destroyCharts();
+        ['metricBorrow', 'metricActive', 'metricCompleted', 'metricOverdue', 'metricSupply', 'metricSupplyQty', 'metricSupplyTypes'].forEach(id => {
+            document.getElementById(id).textContent = '0';
+        });
+        document.getElementById('metricSupplyTop').textContent = '-';
+        renderTopList('topDepartments', []);
+        renderTopList('topPrograms', []);
+        renderTopList('topSupplies', []);
+        renderRecentRows([]);
+        renderRecentSupplyRows([]);
+        document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด: -';
+    }
+
+    function destroyCharts() {
+        [barChartInst, pieChartInst, doughnutChartInst, approvalChartInst, yearLevelChartInst, supplyMonthChartInst, supplyCategoryChartInst].forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        barChartInst = null;
+        pieChartInst = null;
+        doughnutChartInst = null;
+        approvalChartInst = null;
+        yearLevelChartInst = null;
+        supplyMonthChartInst = null;
+        supplyCategoryChartInst = null;
+    }
+
+    function formatNumber(value) {
+        return Number(value || 0).toLocaleString('th-TH');
+    }
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    function openInitialViewFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view') || window.location.hash.replace('#', '');
+        const targetMap = {
+            borrow: '#pills-form',
+            supply: '#pills-supply',
+            dashboard: '#pills-dashboard'
+        };
+        const target = targetMap[view];
+        if (!target) return;
+
+        const tabButton = document.querySelector(`[data-bs-target="${target}"]`);
+        if (tabButton && window.bootstrap) {
+            bootstrap.Tab.getOrCreateInstance(tabButton).show();
+        }
+    }
+
+    window.onload = () => {
+        initCalendarDates();
+        resetBorrowItems();
+        openInitialViewFromUrl();
+        loadDashboardData();
+    };
+</script>
+</body>
+</html>

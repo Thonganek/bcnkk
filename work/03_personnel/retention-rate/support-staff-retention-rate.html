@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบแดชบอร์ดข้อมูลบุคลากรสายสนับสนุน</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Loading Shimmer Animation */
+        .shimmer {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: loading-shimmer 1.5s infinite;
+        }
+        @keyframes loading-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col bg-slate-50">
+
+    <!-- Header & Navigation Bar -->
+    <header class="bg-gradient-to-r from-violet-600 via-pink-500 to-amber-400 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white p-2.5 rounded-2xl shadow-inner text-violet-600">
+                    <i class="fa-solid fa-chart-line text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Support Staff Analytics</h1>
+                    <p class="text-xs text-white/90">ระบบจัดการและวิเคราะห์ข้อมูลบุคลากรผ่าน Google Sheets Direct API</p>
+                </div>
+            </div>
+            <!-- Live Status Indicator -->
+            <div id="status-badge" class="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-sm border border-white/20">
+                <div class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="status-dot"></div>
+                <span id="status-text">กำลังเชื่อมต่อฐานข้อมูล Google Sheets...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full">
+        
+        <!-- Loading UI State -->
+        <div id="loading-screen" class="space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="shimmer h-32 rounded-3xl"></div>
+                <div class="shimmer h-32 rounded-3xl"></div>
+                <div class="shimmer h-32 rounded-3xl"></div>
+                <div class="shimmer h-32 rounded-3xl"></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="shimmer h-80 rounded-3xl"></div>
+                <div class="shimmer h-80 rounded-3xl"></div>
+                <div class="shimmer h-80 rounded-3xl"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content Container (Hidden until API loads successfully) -->
+        <div id="dashboard-content" class="hidden space-y-8">
+            
+            <!-- Summary Cards Section -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Total Personnel Card -->
+                <div class="bg-white rounded-3xl p-6 shadow-md border-l-8 border-violet-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">บุคลากรทั้งหมด</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="stat-total">0</h3>
+                            <p class="text-xs text-violet-500 mt-2 font-medium"><i class="fa-solid fa-users mr-1"></i> ดึงจากตารางทำงานสด</p>
+                        </div>
+                        <div class="bg-violet-100 p-3 rounded-2xl text-violet-600">
+                            <i class="fa-solid fa-user-tie text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Average Age Card -->
+                <div class="bg-white rounded-3xl p-6 shadow-md border-l-8 border-emerald-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">อายุเฉลี่ย</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="stat-avg-age">0.0</h3>
+                            <p class="text-xs text-emerald-600 mt-2 font-medium"><i class="fa-solid fa-heart mr-1"></i> ปีวิเคราะห์ปัจจุบัน 2568</p>
+                        </div>
+                        <div class="bg-emerald-100 p-3 rounded-2xl text-emerald-600">
+                            <i class="fa-solid fa-cake-candles text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Support Card -->
+                <div class="bg-white rounded-3xl p-6 shadow-md border-l-8 border-pink-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">สนับสนุนวิชาการ</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="stat-academic">0</h3>
+                            <p class="text-xs text-pink-500 mt-2 font-medium"><i class="fa-solid fa-chart-pie mr-1"></i> สัดส่วน: <span id="stat-academic-pct">0</span>%</p>
+                        </div>
+                        <div class="bg-pink-100 p-3 rounded-2xl text-pink-600">
+                            <i class="fa-solid fa-graduation-cap text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Administrative Support Card -->
+                <div class="bg-white rounded-3xl p-6 shadow-md border-l-8 border-amber-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">สนับสนุนบริหาร</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="stat-admin">0</h3>
+                            <p class="text-xs text-amber-600 mt-2 font-medium"><i class="fa-solid fa-chart-pie mr-1"></i> สัดส่วน: <span id="stat-admin-pct">0</span>%</p>
+                        </div>
+                        <div class="bg-amber-100 p-3 rounded-2xl text-amber-600">
+                            <i class="fa-solid fa-briefcase text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="bg-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-700 flex items-center gap-2 mb-4">
+                            <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+                            ประเภทงานสายสนับสนุน
+                        </h3>
+                        <div class="relative w-full h-64 flex justify-center items-center">
+                            <canvas id="supportTypeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 pt-4 mt-4 text-xs text-slate-500">
+                        <p><i class="fa-solid fa-circle-info mr-1"></i> สัดส่วนกลุ่มพนักงานสนับสนุนสายวิชาการและงานบริหารทั่วไป</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-700 flex items-center gap-2 mb-4">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                            รูปแบบประเภทงานจ้างงาน
+                        </h3>
+                        <div class="relative w-full h-64 flex justify-center items-center">
+                            <canvas id="personnelTypeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 pt-4 mt-4 text-xs text-slate-500">
+                        <p><i class="fa-solid fa-circle-info mr-1"></i> อัตราข้าราชการ พนักงานสถาบัน และพนักงานราชการ</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-700 flex items-center gap-2 mb-4">
+                            <span class="w-3 h-3 rounded-full bg-pink-500"></span>
+                            การกระจายตัวของระดับช่วงอายุ
+                        </h3>
+                        <div class="relative w-full h-64 flex justify-center items-center">
+                            <canvas id="ageDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 pt-4 mt-4 text-xs text-slate-500">
+                        <p><i class="fa-solid fa-circle-info mr-1"></i> จำนวนบุคลากรสายสนับสนุนจำแนกตามรุ่นอายุ</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Retirement Alert -->
+                <div class="lg:col-span-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-3xl p-6 shadow-lg flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute right-0 bottom-0 text-white/10 text-9xl transform translate-x-10 translate-y-10">
+                        <i class="fa-solid fa-user-clock"></i>
+                    </div>
+                    
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="bg-white/20 p-2 rounded-xl"><i class="fa-solid fa-triangle-exclamation text-xl text-amber-200 animate-pulse"></i></span>
+                            <h3 class="text-lg font-bold">ข้อมูลเกษียณอายุ พ.ศ. 2568</h3>
+                        </div>
+                        <p class="text-sm text-amber-50/90 leading-relaxed mb-4">
+                            วิเคราะห์พบกำลังพลสายสนับสนุนที่ครบกำหนดเกษียณอายุการทำงานในปี 2568 นี้จำนวน <strong class="text-amber-200 text-lg" id="retiring-soon-count">0</strong> ท่าน
+                        </p>
+                        <div id="retirement-alert-list" class="space-y-3 mt-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 relative z-10">
+                        <button onclick="scrollToFilter('เกษียณ')" class="w-full bg-white text-orange-600 py-2.5 px-4 rounded-xl text-sm font-bold shadow-md hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-address-book"></i> รายละเอียดผู้เกษียณอายุ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Position Ranking -->
+                <div class="lg:col-span-8 bg-white rounded-3xl p-6 shadow-md">
+                    <h3 class="text-base font-bold text-slate-700 flex items-center gap-2 mb-4">
+                        <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                        ตำแหน่งงานสูงสุดในสถาบัน (Top Positions)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">กลุ่มตำแหน่งยอดนิยม</h4>
+                            <div id="top-positions-container" class="space-y-3">
+                                <!-- Progress Bars for Positions -->
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-2xl flex flex-col justify-between">
+                            <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">ดัชนีวิเคราะห์อัตราคงอยู่กำลังคน</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                                        <span>คะแนนอัตราความคงอยู่ (Retention Score)</span>
+                                        <span class="font-bold text-violet-600" id="retention-score-text">0%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="bg-violet-500 h-2 rounded-full" style="width: 0%" id="retention-score-bar"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                                        <span>บุคลากรรุ่นใหม่ (เริ่มงานปี 2560 ขึ้นไป)</span>
+                                        <span class="font-bold text-emerald-600" id="new-recruits-text">0 ท่าน</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="bg-emerald-500 h-2 rounded-full" style="width: 0%" id="new-recruits-bar"></div>
+                                    </div>
+                                </div>
+                                <div class="p-3 bg-white rounded-xl border border-slate-100 text-xs text-slate-500">
+                                    <span class="font-bold text-slate-700 block mb-1">💡 ข้อสังเกตเชิงกลยุทธ์:</span>
+                                    ข้อมูลสถิติทั้งหมดประมวลผลดึงตรงสดมาจากชีตเพื่อช่วยเตรียมแผนทรัพยากรบุคคลและอัตราเงินเดือนปีงบประมาณถัดไปอย่างถูกต้องแม่นยำ
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search, Filter & List Table -->
+            <div class="bg-white rounded-3xl p-6 shadow-md" id="personnel-section">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-address-book text-violet-500"></i>
+                            ตารางรายชื่อข้อมูลบุคลากรทั้งหมด
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">สามารถทำการค้นหา จัดกลุ่ม และฟิลเตอร์พนักงานได้สดใหม่ทันที</p>
+                    </div>
+                    
+                    <!-- Tabs filter -->
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                        <button onclick="filterStaff('all')" class="filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 text-white shadow-md transition-all active:scale-95" id="btn-filter-all">
+                            ทั้งหมด
+                        </button>
+                        <button onclick="filterStaff('สนับสนุนวิชาการ')" class="filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-95" id="btn-filter-academic">
+                            สนับสนุนวิชาการ
+                        </button>
+                        <button onclick="filterStaff('สนับสนุนบริหาร')" class="filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-95" id="btn-filter-admin">
+                            สนับสนุนบริหาร
+                        </button>
+                        <button onclick="filterStaff('เกษียณ')" class="filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-95" id="btn-filter-retiring">
+                            ใกล้เกษียณ (อายุ 55+)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search options -->
+                <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                    <div class="relative flex-grow">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" oninput="searchStaff()" placeholder="ค้นหาชื่อ-นามสกุล, ตำแหน่งงาน หรือประเภทบุคลากร..." class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all">
+                    </div>
+                    <div class="sm:w-48">
+                        <select id="typeSelectFilter" onchange="searchStaff()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all text-slate-600">
+                            <option value="">ทุกประเภทบุคลากร</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Responsive Grid Table -->
+                <div class="overflow-x-auto rounded-2xl border border-slate-100">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                <th class="py-4 px-4 text-center">ลำดับ</th>
+                                <th class="py-4 px-4">ชื่อ-นามสกุล</th>
+                                <th class="py-4 px-4 text-center">อายุ (ปี)</th>
+                                <th class="py-4 px-4">ตำแหน่งงาน</th>
+                                <th class="py-4 px-4">ประเภทบุคลากร</th>
+                                <th class="py-4 px-4">สายสนับสนุน</th>
+                                <th class="py-4 px-4 text-center">วันเริ่มปฏิบัติงาน</th>
+                                <th class="py-4 px-4 text-center">ปีที่เกษียณ</th>
+                                <th class="py-4 px-4 text-center">รายละเอียด</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffTableBody" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="flex justify-between items-center mt-4 text-xs text-slate-400">
+                    <span id="showing-entries-text">กำลังค้นหาและดึงข้อมูลสดจากระบบ Cloud...</span>
+                    <span>เชื่อมต่อสำเร็จ</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Troubleshooting Panel (Shows automatically on fetch failure) -->
+        <div id="troubleshoot-panel" class="hidden bg-white rounded-3xl p-8 shadow-xl max-w-2xl mx-auto border border-rose-100 mt-6 animate-pulse">
+            <div class="flex items-start gap-4 text-rose-600 mb-6">
+                <div class="bg-rose-100 p-3 rounded-2xl text-2xl"><i class="fa-solid fa-circle-exclamation"></i></div>
+                <div>
+                    <h2 class="text-xl font-bold">ไม่สามารถเชื่อมต่อข้อมูล Google Sheets ได้</h2>
+                    <p class="text-sm text-slate-500 mt-1" id="error-reason">รายละเอียด: CORS Error or JSON Parsing issue</p>
+                </div>
+            </div>
+            
+            <div class="space-y-4 text-sm text-slate-600">
+                <p class="font-bold text-slate-700">🛠️ วิธีแก้ไขปัญหาและขั้นตอนที่ต้องดำเนินการ:</p>
+                
+                <div class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div class="flex items-start gap-2">
+                        <span class="bg-violet-600 text-white rounded-full w-5 h-5 flex justify-center items-center text-xs font-bold mt-0.5">1</span>
+                        <div>
+                            <p class="font-semibold text-slate-800">ตรวจสอบการตั้งค่าการแชร์ (Deploy Settings) ใน Apps Script</p>
+                            <p class="text-xs text-slate-500 mt-0.5">ต้องตั้งค่า **Execute as:** "Me" และ **Who has access:** "Anyone" (ทุกคน)</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="bg-violet-600 text-white rounded-full w-5 h-5 flex justify-center items-center text-xs font-bold mt-0.5">2</span>
+                        <div>
+                            <p class="font-semibold text-slate-800">คุณลืมคลิกเปลี่ยน Deployments เป็น "New Version"</p>
+                            <p class="text-xs text-slate-500 mt-0.5">เมื่อแก้ไข Code.gs ในสคริปต์ คุณ**จำเป็นต้องกด Deploy -> Manage Deployments -> เลือกไอคอนดินสอแก้ไข -> เลือกเวอร์ชันเป็น "New Version" (เวอร์ชันใหม่)** แล้วกด Deploy อีกครั้ง ไม่เช่นนั้นการแก้ไขของโค้ดสิทธิ์จะไม่มีผล</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal for Employee Details -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl transform transition-all scale-95 duration-300 flex flex-col">
+            <div class="bg-gradient-to-r from-violet-600 to-pink-500 p-6 text-white relative">
+                <button onclick="closeModal()" class="absolute top-4 right-4 bg-white/20 hover:bg-white/35 p-1.5 rounded-full text-white transition-all">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <div class="flex items-center gap-4">
+                    <div class="bg-white text-violet-600 w-16 h-16 rounded-full flex justify-center items-center text-2xl font-bold shadow-md" id="modal-avatar">
+                        -
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-bold" id="modal-name">ชื่อ นามสกุล</h4>
+                        <p class="text-xs text-white/90" id="modal-position">ตำแหน่งงาน</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-grow text-sm">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-3 rounded-2xl">
+                        <span class="text-xs text-slate-400 block mb-1">อายุปัจจุบัน</span>
+                        <span class="font-bold text-slate-800 text-base" id="modal-age">0 ปี</span>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-2xl">
+                        <span class="text-xs text-slate-400 block mb-1">ปีเกษียณ (พ.ศ.)</span>
+                        <span class="font-bold text-orange-600 text-base" id="modal-retire">0</span>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex justify-between py-2 border-b border-slate-100">
+                        <span class="text-slate-400">ประเภทบุคลากร</span>
+                        <span class="font-semibold text-slate-700" id="modal-type">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-slate-100">
+                        <span class="text-slate-400">สายงานสนับสนุน</span>
+                        <span class="font-semibold text-slate-700" id="modal-support-type">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-slate-100">
+                        <span class="text-slate-400">วันเริ่มปฏิบัติงาน</span>
+                        <span class="font-semibold text-slate-700" id="modal-start-date">-</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-slate-100">
+                        <span class="text-slate-400">อายุงานโดยประมาณ</span>
+                        <span class="font-semibold text-violet-600" id="modal-tenure">-</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-violet-50 text-violet-700 rounded-2xl text-xs flex items-start gap-2.5">
+                    <i class="fa-solid fa-lightbulb mt-0.5"></i>
+                    <p>ระบบบันทึกประวัติและความคงอยู่อัตโนมัติ เพื่อประโยชน์ด้านสิทธิสวัสดิการและการวางกำลังทดแทนตามแผนกงาน</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 flex justify-end gap-2">
+                <button onclick="closeModal()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-semibold text-xs transition-all active:scale-95">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Area -->
+    <footer class="bg-slate-800 text-slate-400 text-xs py-8 mt-12 border-t border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+            <p>ระบบจัดการและวิเคราะห์ประสิทธิภาพการคงอยู่บุคลากรสายสนับสนุน (Google Sheets Direct Connection)</p>
+            <p>&copy; 2569 สถาบันวิจัยการศึกษาและการบริหารงานบุคคลสายสนับสนุน. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- App Logic & Integration to GAS -->
+    <script>
+        // URL API (Web App) ของ Google Apps Script ที่คุณจัดเตรียมและสร้างไว้
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyNHXQP0kGFvGzXofJU9GKrDjxFr2VARVh5bczCL9Yzcvphfslc89QwljgKBIXahN8k/exec';
+
+        let dataset = []; 
+        let currentFilter = 'all';
+        let chartsInstance = {};
+
+        // รันดาวน์โหลดข้อมูลสดในตารางทันทีเมื่อเปิดหน้าเว็บบราวเซอร์ขึ้นมา
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchLiveDataFromSheet();
+        });
+
+        function fetchLiveDataFromSheet() {
+            setConnectionStatus('loading', 'กำลังเชื่อมต่อและโหลดข้อมูลเรียลไทม์ผ่าน API...');
+            
+            fetch(API_URL, {
+                method: 'GET',
+                redirect: 'follow' // ป้องกันปัญหา Redirection ล้มเหลวของ Google Content Service
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('การเชื่อมต่อกับสคริปต์เซิร์ฟเวอร์ขัดข้อง (Network Response Not OK)');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // ดึงเฉพาะแถวที่มีการกรอกชื่อ-นามสกุลจริงๆ
+                dataset = data.filter(item => item.name !== "" && item.name !== undefined);
+
+                // ซ่อนกลุ่ม Loading ของโครงระบบ เพื่อโชว์แดชบอร์ดจริง
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('dashboard-content').classList.remove('hidden');
+
+                setConnectionStatus('success', `ดึงข้อมูลสำเร็จเรียบร้อย: ${dataset.length} รายการ`);
+                
+                // เริ่มต้นตั้งค่า UI และส่วนข้อมูลต่างๆ บนบอร์ด
+                initStats();
+                initCharts();
+                populateTypeFilterOptions();
+                renderTable(dataset);
+                generateRetirementAlerts();
+                renderTopPositions();
+            })
+            .catch(error => {
+                console.error("API Integration error: ", error);
+                setConnectionStatus('error', 'ล้มเหลว: ดึงข้อมูลไม่สำเร็จ');
+                showTroubleshootUI(error.message);
+            });
+        }
+
+        function showTroubleshootUI(errMsg) {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('troubleshoot-panel').classList.remove('hidden');
+            document.getElementById('error-reason').innerText = `สาเหตุการล้มเหลว: ${errMsg}`;
+        }
+
+        function setConnectionStatus(type, text) {
+            const dot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const badge = document.getElementById('status-badge');
+
+            statusText.innerText = text;
+            
+            if (type === 'loading') {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+                badge.className = "flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-sm border border-white/20";
+            } else if (type === 'success') {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+                badge.className = "flex items-center gap-3 bg-emerald-500/10 backdrop-blur-md px-4 py-2 rounded-xl text-sm border border-emerald-500/20";
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping";
+                badge.className = "flex items-center gap-3 bg-rose-500/10 backdrop-blur-md px-4 py-2 rounded-xl text-sm border border-rose-500/20 text-rose-300 animate-pulse";
+            }
+        }
+
+        function populateTypeFilterOptions() {
+            const dropdown = document.getElementById('typeSelectFilter');
+            const types = [...new Set(dataset.map(item => item.type).filter(Boolean))];
+            
+            dropdown.innerHTML = '<option value="">ทุกประเภทบุคลากร</option>';
+            types.forEach(type => {
+                const opt = document.createElement('option');
+                opt.value = type;
+                opt.innerText = type;
+                dropdown.appendChild(opt);
+            });
+        }
+
+        function initStats() {
+            const total = dataset.length;
+            const validAges = dataset.map(item => item.age).filter(age => age > 0);
+            const avgAge = validAges.length > 0 ? (validAges.reduce((sum, age) => sum + age, 0) / validAges.length).toFixed(1) : "0.0";
+            
+            const academicCount = dataset.filter(i => i.support.includes('วิชาการ')).length;
+            const adminCount = dataset.filter(i => i.support.includes('บริหาร')).length;
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-avg-age').innerText = avgAge;
+            document.getElementById('stat-academic').innerText = academicCount;
+            document.getElementById('stat-academic-pct').innerText = total > 0 ? ((academicCount / total) * 100).toFixed(1) : "0";
+            document.getElementById('stat-admin').innerText = adminCount;
+            document.getElementById('stat-admin-pct').innerText = total > 0 ? ((adminCount / total) * 100).toFixed(1) : "0";
+        }
+
+        function initCharts() {
+            // Chart 1: สัดส่วนงานสายสนับสนุน
+            const supportTypes = { 'สนับสนุนวิชาการ': 0, 'สนับสนุนบริหาร': 0 };
+            dataset.forEach(item => {
+                if (item.support.includes('วิชาการ')) supportTypes['สนับสนุนวิชาการ']++;
+                else if (item.support.includes('บริหาร')) supportTypes['สนับสนุนบริหาร']++;
+            });
+
+            const ctx1 = document.getElementById('supportTypeChart').getContext('2d');
+            chartsInstance.supportType = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(supportTypes),
+                    datasets: [{
+                        data: Object.values(supportTypes),
+                        backgroundColor: ['#ec4899', '#f59e0b'],
+                        borderColor: '#ffffff',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { family: 'Prompt', size: 12 } }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            // Chart 2: ประเภทตำแหน่งงานจ้างงาน
+            const personnelTypes = {};
+            dataset.forEach(item => {
+                if (item.type) {
+                    personnelTypes[item.type] = (personnelTypes[item.type] || 0) + 1;
+                }
+            });
+
+            const ctx2 = document.getElementById('personnelTypeChart').getContext('2d');
+            chartsInstance.personnelType = new Chart(ctx2, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(personnelTypes),
+                    datasets: [{
+                        data: Object.values(personnelTypes),
+                        backgroundColor: ['#8b5cf6', '#10b981', '#3b82f6', '#ef4444', '#06b6d4', '#f43f5e'],
+                        borderColor: '#ffffff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { family: 'Prompt', size: 11 } }
+                        }
+                    }
+                }
+            });
+
+            // Chart 3: ช่วงเกณฑ์อายุ
+            const ageRanges = { '20-29': 0, '30-39': 0, '40-49': 0, '50-59': 0, '60+': 0 };
+            dataset.forEach(item => {
+                if (item.age > 0) {
+                    if (item.age < 30) ageRanges['20-29']++;
+                    else if (item.age < 40) ageRanges['30-39']++;
+                    else if (item.age < 50) ageRanges['40-49']++;
+                    else if (item.age < 60) ageRanges['50-59']++;
+                    else ageRanges['60+']++;
+                }
+            });
+
+            const ctx3 = document.getElementById('ageDistributionChart').getContext('2d');
+            chartsInstance.ageDistribution = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(ageRanges),
+                    datasets: [{
+                        label: 'จำนวนคน (คน)',
+                        data: Object.values(ageRanges),
+                        backgroundColor: '#6366f1',
+                        borderRadius: 8,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0, font: { family: 'Prompt' } }
+                        },
+                        x: {
+                            ticks: { font: { family: 'Prompt' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTable(data) {
+            const tableBody = document.getElementById('staffTableBody');
+            tableBody.innerHTML = '';
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="py-10 text-center text-slate-400">
+                            <i class="fa-solid fa-face-frown text-4xl mb-3 block"></i>
+                            ไม่พบข้อมูลบุคลากรที่ต้องการ
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('showing-entries-text').innerText = 'ไม่พบข้อมูลตามเงื่อนไข';
+                return;
+            }
+
+            data.forEach((item, index) => {
+                const supportBadge = item.support.includes('วิชาการ') 
+                    ? `<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-pink-100 text-pink-700"><i class="fa-solid fa-graduation-cap mr-1"></i>วิชาการ</span>`
+                    : `<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700"><i class="fa-solid fa-briefcase mr-1"></i>บริหาร</span>`;
+
+                let ageBadge = `<span class="font-bold">${item.age || '-'}</span>`;
+                if (item.age >= 55) {
+                    ageBadge = `<span class="px-2 py-0.5 text-xs font-extrabold rounded-md bg-orange-100 text-orange-700 flex items-center justify-center gap-1 w-12 mx-auto"><i class="fa-solid fa-triangle-exclamation"></i>${item.age}</span>`;
+                }
+
+                let typeBadge = `<span class="px-2 py-0.5 text-xs rounded-md border border-slate-200 text-slate-700 bg-slate-50 font-medium">${item.type}</span>`;
+                if (item.type.includes('สถาบัน')) {
+                    typeBadge = `<span class="px-2 py-0.5 text-xs rounded-md border border-violet-200 text-violet-700 bg-violet-50 font-medium">${item.type}</span>`;
+                } else if (item.type.includes('ราชการ')) {
+                    typeBadge = `<span class="px-2 py-0.5 text-xs rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">${item.type}</span>`;
+                } else if (item.type.includes('ข้าราชการ')) {
+                    typeBadge = `<span class="px-2 py-0.5 text-xs rounded-md border border-blue-200 text-blue-700 bg-blue-50 font-medium">${item.type}</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition-colors";
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 text-center font-bold text-slate-400">${item.id}</td>
+                    <td class="py-3.5 px-4 font-bold text-slate-800">${item.title}${item.name}</td>
+                    <td class="py-3.5 px-4 text-center">${ageBadge}</td>
+                    <td class="py-3.5 px-4 text-slate-600 font-medium">${item.position}</td>
+                    <td class="py-3.5 px-4">${typeBadge}</td>
+                    <td class="py-3.5 px-4">${supportBadge}</td>
+                    <td class="py-3.5 px-4 text-center text-slate-500 font-semibold">${item.start}</td>
+                    <td class="py-3.5 px-4 text-center font-bold text-orange-600">${item.retire || '-'}</td>
+                    <td class="py-3.5 px-4 text-center">
+                        <button onclick="viewDetails(${item.id})" class="bg-violet-100 hover:bg-violet-200 text-violet-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-1 mx-auto">
+                            <i class="fa-solid fa-eye"></i> ดูข้อมูล
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            document.getElementById('showing-entries-text').innerText = `กำลังแสดง ${data.length} จาก ${dataset.length} บุคลากร`;
+        }
+
+        function generateRetirementAlerts() {
+            const currentYearBE = 2568; 
+            const immediateRetirees = dataset.filter(item => item.retire === currentYearBE);
+            const alertList = document.getElementById('retirement-alert-list');
+            alertList.innerHTML = '';
+
+            document.getElementById('retiring-soon-count').innerText = immediateRetirees.length;
+
+            if (immediateRetirees.length > 0) {
+                immediateRetirees.forEach(person => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "bg-white/10 hover:bg-white/20 p-3 rounded-2xl flex items-center justify-between border border-white/25 transition-all";
+                    itemDiv.innerHTML = `
+                        <div class="flex items-center gap-2.5">
+                            <div class="bg-amber-100 text-amber-700 p-1.5 rounded-xl"><i class="fa-solid fa-user-clock text-xs"></i></div>
+                            <div>
+                                <p class="text-xs font-bold">${person.title}${person.name}</p>
+                                <p class="text-[10px] text-amber-100">${person.position}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-bold bg-white text-orange-600 px-2 py-0.5 rounded-md">เกษียณ: ${person.retire}</span>
+                    `;
+                    alertList.appendChild(itemDiv);
+                });
+            } else {
+                alertList.innerHTML = `<p class="text-xs text-amber-100 italic text-center py-2">ไม่มีผู้เกษียณอายุกำหนดในปีนี้</p>`;
+            }
+        }
+
+        function renderTopPositions() {
+            const positionMap = {};
+            dataset.forEach(item => {
+                if (item.position) {
+                    positionMap[item.position] = (positionMap[item.position] || 0) + 1;
+                }
+            });
+
+            const sortedPositions = Object.entries(positionMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4);
+
+            const container = document.getElementById('top-positions-container');
+            container.innerHTML = '';
+
+            const colors = ['bg-violet-500', 'bg-pink-500', 'bg-amber-500', 'bg-emerald-500'];
+
+            sortedPositions.forEach(([posName, count], idx) => {
+                const pct = dataset.length > 0 ? ((count / dataset.length) * 100).toFixed(1) : 0;
+                const posDiv = document.createElement('div');
+                posDiv.innerHTML = `
+                    <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                        <span>${idx + 1}. ${posName}</span>
+                        <span>${count} ท่าน (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5">
+                        <div class="${colors[idx % colors.length]} h-1.5 rounded-full" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                container.appendChild(posDiv);
+            });
+
+            // Retention Index
+            const staffUnder55 = dataset.filter(item => item.age < 55).length;
+            const retentionPct = dataset.length > 0 ? ((staffUnder55 / dataset.length) * 100).toFixed(1) : 100;
+            document.getElementById('retention-score-text').innerText = `${retentionPct}%`;
+            document.getElementById('retention-score-bar').style.width = `${retentionPct}%`;
+
+            // New recruits
+            let newRecruitsCount = 0;
+            dataset.forEach(item => {
+                if (item.start && item.start !== '-') {
+                    const parts = item.start.split(' ');
+                    const yearBE = parseInt(parts[parts.length - 1]);
+                    if (yearBE && (yearBE >= 20 || yearBE < 50)) { 
+                        newRecruitsCount++;
+                    }
+                }
+            });
+            const recruitPct = dataset.length > 0 ? ((newRecruitsCount / dataset.length) * 100).toFixed(1) : 0;
+            document.getElementById('new-recruits-text').innerText = `${newRecruitsCount} ท่าน`;
+            document.getElementById('new-recruits-bar').style.width = `${recruitPct}%`;
+        }
+
+        function searchStaff() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const selectedType = document.getElementById('typeSelectFilter').value;
+
+            const filtered = dataset.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(query) || 
+                                      item.position.toLowerCase().includes(query) ||
+                                      item.type.toLowerCase().includes(query) ||
+                                      item.support.toLowerCase().includes(query);
+                
+                const matchesType = selectedType === "" ? true : item.type === selectedType;
+
+                let matchesTab = true;
+                if (currentFilter === 'สนับสนุนวิชาการ') {
+                    matchesTab = item.support.includes('วิชาการ');
+                } else if (currentFilter === 'สนับสนุนบริหาร') {
+                    matchesTab = item.support.includes('บริหาร');
+                } else if (currentFilter === 'เกษียณ') {
+                    matchesTab = item.age >= 55;
+                }
+
+                return matchesSearch && matchesType && matchesTab;
+            });
+
+            renderTable(filtered);
+        }
+
+        function filterStaff(filterType) {
+            currentFilter = filterType;
+            
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.className = "filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-95";
+            });
+
+            if (filterType === 'all') {
+                document.getElementById('btn-filter-all').className = "filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 text-white shadow-md transition-all active:scale-95";
+            } else if (filterType === 'สนับสนุนวิชาการ') {
+                document.getElementById('btn-filter-academic').className = "filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-pink-600 text-white shadow-md transition-all active:scale-95";
+            } else if (filterType === 'สนับสนุนบริหาร') {
+                document.getElementById('btn-filter-admin').className = "filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-amber-600 text-white shadow-md transition-all active:scale-95";
+            } else if (filterType === 'เกษียณ') {
+                document.getElementById('btn-filter-retiring').className = "filter-tab px-4 py-2 text-xs font-semibold rounded-xl bg-orange-600 text-white shadow-md transition-all active:scale-95";
+            }
+
+            searchStaff();
+        }
+
+        function scrollToFilter(type) {
+            document.getElementById('personnel-section').scrollIntoView({ behavior: 'smooth' });
+            filterStaff(type);
+        }
+
+        function viewDetails(id) {
+            const person = dataset.find(item => item.id === id);
+            if (!person) return;
+
+            let approxTenure = "-";
+            if (person.start && person.start !== '-') {
+                const parts = person.start.split(' ');
+                const yearPart = parts[parts.length - 1];
+                let startYearBE = parseInt(yearPart);
+                if (startYearBE > 50) {
+                    startYearBE = 2500 + startYearBE;
+                } else {
+                    startYearBE = 2500 + startYearBE;
+                }
+                const currentYearBE = 2568; 
+                approxTenure = `ประมาณ ${currentYearBE - startYearBE} ปี (เริ่มทำงานเมื่อปี พ.ศ. ${startYearBE})`;
+            }
+
+            document.getElementById('modal-avatar').innerText = person.name.charAt(0);
+            document.getElementById('modal-name').innerText = person.title + person.name;
+            document.getElementById('modal-position').innerText = person.position;
+            document.getElementById('modal-age').innerText = (person.age || '-') + " ปี";
+            document.getElementById('modal-retire').innerText = person.retire || '-';
+            document.getElementById('modal-type').innerText = person.type;
+            document.getElementById('modal-support-type').innerText = person.support;
+            document.getElementById('modal-start-date').innerText = person.start;
+            document.getElementById('modal-tenure').innerText = approxTenure;
+
+            const modal = document.getElementById('detailModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 50);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('detailModal');
+            modal.firstElementChild.classList.remove('scale-100');
+            modal.firstElementChild.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+    </script>
+</body>
+</html>

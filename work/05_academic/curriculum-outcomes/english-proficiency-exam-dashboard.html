@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Exam Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#059669', // Emerald 600
+                        primary_dark: '#047857',
+                        secondary: '#f8fafc',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js & Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        .table-container::-webkit-scrollbar { width: 8px; height: 8px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        body { background-color: #f1f5f9; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-primary text-white p-2 rounded-lg">
+                        <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xl leading-tight text-slate-800">ระบบรายงานผลสอบวัดความรู้ภาษาอังกฤษ</h1>
+                        <p class="text-xs text-slate-500">English Proficiency Exam Results Dashboard</p>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200" id="data-source-badge">
+                        กำลังเชื่อมต่อ...
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- Connection Diagnostic Alert -->
+        <div id="diagnostic-alert" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-5 mb-8 text-amber-900 shadow-sm">
+            <div class="flex gap-3">
+                <i data-lucide="alert-triangle" class="w-6 h-6 text-amber-600 shrink-0 mt-0.5"></i>
+                <div class="w-full">
+                    <h4 class="font-bold text-base text-amber-800 mb-1" id="error-title">ไม่สามารถเชื่อมต่อข้อมูลได้</h4>
+                    <p class="text-sm text-amber-700 leading-relaxed mb-4" id="error-desc">
+                        กำลังพบปัญหาการดึงข้อมูลจาก Google Sheets
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="fetchDataFromGS()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> ลองเชื่อมต่ออีกครั้ง
+                        </button>
+                        <button onclick="switchToDemoMode()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i> เข้าใช้โหมดสาธิตข้อมูล (471 คน)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs สำหรับแยกชั้นปีและภาพรวม -->
+        <div class="flex flex-wrap gap-2 mb-6" id="year-tabs">
+            <button onclick="switchTab('all')" id="tab-all" class="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white shadow-sm transition-colors flex items-center gap-1.5 border border-primary">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ภาพรวม
+            </button>
+            <button onclick="switchTab('1')" id="tab-1" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+                ชั้นปีที่ 1
+            </button>
+            <button onclick="switchTab('2')" id="tab-2" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+                ชั้นปีที่ 2
+            </button>
+            <button onclick="switchTab('3')" id="tab-3" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+                ชั้นปีที่ 3
+            </button>
+            <button onclick="switchTab('4')" id="tab-4" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+                ชั้นปีที่ 4
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4 transition-transform hover:-translate-y-1 duration-300">
+                <div class="bg-blue-100 text-blue-600 p-4 rounded-full">
+                    <i data-lucide="users" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500 mb-1">นักศึกษาทั้งหมด</p>
+                    <h3 class="text-3xl font-bold text-slate-800" id="kpi-total">0</h3>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4 transition-transform hover:-translate-y-1 duration-300">
+                <div class="bg-emerald-100 text-emerald-600 p-4 rounded-full">
+                    <i data-lucide="check-circle" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500 mb-1">สอบผ่านเกณฑ์</p>
+                    <h3 class="text-3xl font-bold text-emerald-600" id="kpi-passed">0</h3>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4 transition-transform hover:-translate-y-1 duration-300">
+                <div class="bg-rose-100 text-rose-600 p-4 rounded-full">
+                    <i data-lucide="x-circle" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500 mb-1">ไม่ผ่านเกณฑ์</p>
+                    <h3 class="text-3xl font-bold text-rose-600" id="kpi-failed">0</h3>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4 transition-transform hover:-translate-y-1 duration-300">
+                <div class="bg-purple-100 text-purple-600 p-4 rounded-full">
+                    <i data-lucide="percent" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500 mb-1">ร้อยละที่สอบผ่าน</p>
+                    <h3 class="text-3xl font-bold text-purple-600" id="kpi-rate">0%</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="w-5 h-5 text-slate-500"></i> สัดส่วนผลการสอบ
+                </h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-slate-500"></i> สถิติผลการสอบแยกตามชั้นปี
+                </h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="yearChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            <div class="p-6 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-center">
+                <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2 w-full md:w-auto">
+                    <i data-lucide="table" class="w-5 h-5 text-slate-500"></i> รายชื่อและผลการสอบ
+                </h3>
+                
+                <div class="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                        </div>
+                        <input type="text" id="searchInput" placeholder="ค้นหารหัส, ชื่อ, สกุล..." 
+                            class="pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary w-full sm:w-64 outline-none transition-all">
+                    </div>
+                    
+                    <select id="yearFilter" class="px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white cursor-pointer">
+                        <option value="all">ทุกชั้นปี</option>
+                        <option value="1">ชั้นปีที่ 1</option>
+                        <option value="2">ชั้นปีที่ 2</option>
+                        <option value="3">ชั้นปีที่ 3</option>
+                        <option value="4">ชั้นปีที่ 4</option>
+                    </select>
+
+                    <select id="statusFilter" class="px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white cursor-pointer">
+                        <option value="all">ทุกสถานะ</option>
+                        <option value="ผ่าน">ผ่านเกณฑ์</option>
+                        <option value="ไม่ผ่าน">ไม่ผ่านเกณฑ์</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 text-sm border-b border-slate-200">
+                            <th class="px-6 py-4 font-semibold text-center w-20">ลำดับ</th>
+                            <th class="px-6 py-4 font-semibold text-center">รหัสประจำตัวนักศึกษา</th>
+                            <th class="px-6 py-4 font-semibold">ชื่อ</th>
+                            <th class="px-6 py-4 font-semibold">สกุล</th>
+                            <th class="px-6 py-4 font-semibold text-center w-24">ชั้นปี</th>
+                            <th class="px-6 py-4 font-semibold text-center">สรุปผลตามเกณฑ์ที่สถาบันกำหนด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-200">
+                        <!-- Table rows -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="emptyState" class="hidden py-12 flex-col items-center justify-center text-slate-500">
+                <i data-lucide="search-x" class="w-12 h-12 mb-3 text-slate-300"></i>
+                <p>ไม่พบข้อมูลที่ตรงกับเงื่อนไข</p>
+            </div>
+            
+            <div class="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 text-right">
+                แสดงผล <span id="showingCount" class="font-semibold text-slate-700">0</span> รายการ
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-xs border-t border-slate-700">
+        <p>© 2026 วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น (BCNNON) | ระบบ Dashboard ผลสอบวัดความรู้ภาษาอังกฤษ</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // 🟢 ฝัง URL สำหรับ Web App ของ Google Apps Script
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEOVjPkK6mIKC4UR9ypcHrZmJ1w_73049jJsAfWjkwXiFVhZURytmBkeJjJdeN29GQ/exec";
+
+        let originalData = [];
+        let currentData = [];
+        let statusChartInstance = null;
+        let yearChartInstance = null;
+
+        function switchTab(year) {
+            // อัปเดตสไตล์ของปุ่ม Tab เมื่อถูกเลือก
+            const tabs = ['all', '1', '2', '3', '4'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === year) {
+                    btn.classList.add('bg-primary', 'text-white', 'border-primary', 'shadow-sm');
+                    btn.classList.remove('bg-white', 'text-slate-600', 'border-slate-200', 'hover:bg-slate-50');
+                } else {
+                    btn.classList.remove('bg-primary', 'text-white', 'border-primary', 'shadow-sm');
+                    btn.classList.add('bg-white', 'text-slate-600', 'border-slate-200', 'hover:bg-slate-50');
+                }
+            });
+
+            // ซิงค์ค่าไปที่ Dropdown ตัวกรองตารางด้วย
+            document.getElementById('yearFilter').value = year;
+            applyFilters();
+        }
+
+        function fetchDataFromGS() {
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            const alertBox = document.getElementById('diagnostic-alert');
+            
+            alertBox.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+            tbody.parentElement.classList.remove('hidden');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-12">
+                        <div class="flex flex-col items-center justify-center text-primary">
+                            <i data-lucide="loader-2" class="w-10 h-10 animate-spin mb-3"></i>
+                            <p class="text-slate-600 font-medium">กำลังโหลดข้อมูลจากระบบสเปรดชีต...</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            lucide.createIcons();
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setConnectionBadge(true, 'ระบบจริง (GS)');
+                        processResponse(response);
+                    })
+                    .withFailureHandler(function(error) {
+                        displayError("GS Error", error.message || error);
+                    })
+                    .getDashboardData();
+            } else {
+                // 🟠 เพิ่มการตั้งค่า redirect: 'follow' เพื่อแก้ไขปัญหาของ Failed to Fetch บน Google Apps Script
+                fetch(SCRIPT_URL, {
+                    method: 'GET',
+                    redirect: 'follow'
+                })
+                .then(async res => {
+                    if (!res.ok) throw new Error("Network Response error (การเชื่อมต่อเครือข่ายล้มเหลว)");
+                    
+                    // ป้องกันกรณีที่ได้หน้าจอ HTML (หน้า Login หรือหน้า Error ของ Google) กลับมา
+                    const contentType = res.headers.get("content-type");
+                    if (contentType && contentType.includes("text/html")) {
+                        throw new Error("CORS_AUTH_ERROR");
+                    }
+                    return res.json();
+                })
+                .then(response => {
+                    if (response.error) {
+                        throw new Error("SHEET_ERROR: " + response.error);
+                    }
+                    setConnectionBadge(true, 'เชื่อมต่อ API สำเร็จ');
+                    processResponse(response);
+                })
+                .catch(error => {
+                    let errTitle = "ไม่สามารถเชื่อมต่อข้อมูลได้ (Failed to fetch)";
+                    let errDesc = "เกิดจากระบบบราวเซอร์ปฏิเสธการเชื่อมต่อ หรือ URL API ไม่ถูกต้อง";
+                    
+                    if(error.message === "CORS_AUTH_ERROR") {
+                        errTitle = "การตั้งค่าสิทธิ์ Google Sheets ไม่ถูกต้อง";
+                        errDesc = "ระบบพบว่าคุณยังไม่ได้ตั้งค่า 'ผู้มีสิทธิ์เข้าใช้งาน' ให้เป็น 'ทุกคน (Anyone)' โปรดไปที่ จัดการการทำให้ใช้งานได้ > แก้ไข > เปลี่ยนสิทธิ์เป็นทุกคน > อัปเดตเวอร์ชันใหม่";
+                    } else if (error.message.includes("SHEET_ERROR")) {
+                        errTitle = "ข้อผิดพลาดจาก Google Sheets";
+                        errDesc = error.message.replace("SHEET_ERROR: ", "");
+                    }
+
+                    displayError(errTitle, errDesc);
+                });
+            }
+        }
+
+        function setConnectionBadge(isSuccess, text) {
+            const badge = document.getElementById('data-source-badge');
+            badge.textContent = text;
+            badge.className = isSuccess 
+                ? 'text-sm text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200'
+                : 'text-sm text-rose-600 bg-rose-100 px-3 py-1 rounded-full border border-rose-200';
+        }
+
+        function processResponse(response) {
+            if (!response || !response.students || !response.students.list) {
+                displayError("โครงสร้างไม่สมบูรณ์", "ไม่พบโครงสร้างข้อมูล Array จากระบบ");
+                return;
+            }
+
+            originalData = response.students.list;
+            currentData = [...originalData];
+            
+            updateKPIs(currentData);
+            updateCharts(currentData);
+            updateTable(currentData);
+        }
+
+        function displayError(title, desc) {
+            const tbody = document.getElementById('tableBody');
+            const alertBox = document.getElementById('diagnostic-alert');
+            
+            document.getElementById('error-title').textContent = title;
+            document.getElementById('error-desc').textContent = desc;
+
+            alertBox.classList.remove('hidden');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-8 text-rose-500 font-medium">
+                        <i data-lucide="cloud-off" class="w-8 h-8 mx-auto mb-2 text-rose-400"></i>
+                        ดึงข้อมูลล้มเหลว โปรดดูคำแนะนำด้านบน
+                    </td>
+                </tr>
+            `;
+            setConnectionBadge(false, 'ไม่ได้เชื่อมต่อ');
+            lucide.createIcons();
+        }
+
+        // 🟠 โหมดสาธิต (Demo) จำลองข้อมูลจริง 471 คน
+        function switchToDemoMode() {
+            document.getElementById('diagnostic-alert').classList.add('hidden');
+            setConnectionBadge(true, 'โหมดสาธิต (สถิติจริง)');
+            document.getElementById('data-source-badge').className = 'text-sm text-amber-600 bg-amber-100 px-3 py-1 rounded-full border border-amber-200';
+
+            const demoList = [];
+            const namesYear4 = ["กตัญชลี ศรีโคตร", "กนกนาฎ เดชรักษา", "กมลทิพย์ สมสุข", "กรรณิการ์ โหมฮึก", "กัญกนิษฐ์ ไทยวงศ์", "กัญญารัตน์ เสนาวัง", "กาญจนา นาชัยนาค", "กิติยาภรณ์ ธรรมพิทักษ์", "กีรติกาญจน์ ชำนาญรบ", "เกียรติภูมิ ทองคนทา"];
+            for (let i = 1; i <= 151; i++) {
+                const nameProto = namesYear4[(i - 1) % namesYear4.length].split(" ");
+                demoList.push({
+                    id: i,
+                    studentId: (65128301000 + i).toString(),
+                    firstName: nameProto[0] + (i > 10 ? ` (${Math.ceil(i/10)})` : ""),
+                    lastName: nameProto[1],
+                    year: "4",
+                    status: "ผ่าน"
+                });
+            }
+
+            const namesYear1 = ["วิปัศยา พูลดี", "วีรดา บมขุนทด", "ศลิษา เสนาภักดิ์", "ศศิธร วงค์พรม", "ศิรัญญา จันทบุตร", "ศิริโฉม ศรีทอง", "ศุภกฤต กุลทอง", "ศุภากร โคตรธรรม", "สรญา แสงโคตร", "สรวรรณ สมสนุก"];
+            for (let i = 152; i <= 471; i++) {
+                const nameProto = namesYear1[(i - 152) % namesYear1.length].split(" ");
+                const isPassed = (i % 3 === 0 || i % 7 === 0); 
+                demoList.push({
+                    id: i,
+                    studentId: (68128301000 + (i - 151)).toString(),
+                    firstName: nameProto[0] + ` (${i - 151})`,
+                    lastName: nameProto[1],
+                    year: "1",
+                    status: isPassed ? "ผ่าน" : "ไม่ผ่าน"
+                });
+            }
+
+            originalData = demoList;
+            currentData = [...originalData];
+            
+            updateKPIs(currentData);
+            updateCharts(currentData);
+            updateTable(currentData);
+        }
+
+        function updateKPIs(data) {
+            const total = data.length;
+            const passed = data.filter(d => d.status === 'ผ่าน').length;
+            const failed = total - passed;
+            const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+
+            document.getElementById('kpi-total').textContent = total.toLocaleString();
+            document.getElementById('kpi-passed').textContent = passed.toLocaleString();
+            document.getElementById('kpi-failed').textContent = failed.toLocaleString();
+            document.getElementById('kpi-rate').textContent = passRate + '%';
+        }
+
+        function updateCharts(data) {
+            const passed = data.filter(d => d.status === 'ผ่าน').length;
+            const failed = data.filter(d => d.status === 'ไม่ผ่าน').length;
+
+            if (statusChartInstance) statusChartInstance.destroy();
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            statusChartInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ผ่านเกณฑ์', 'ไม่ผ่านเกณฑ์'],
+                    datasets: [{
+                        data: [passed, failed],
+                        backgroundColor: ['#10b981', '#f43f5e'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt' } } } },
+                    cutout: '65%'
+                }
+            });
+
+            const years = ['1', '2', '3', '4'];
+            const yearPassed = years.map(y => data.filter(d => String(d.year) === String(y) && d.status === 'ผ่าน').length);
+            const yearFailed = years.map(y => data.filter(d => String(d.year) === String(y) && d.status === 'ไม่ผ่าน').length);
+
+            if (yearChartInstance) yearChartInstance.destroy();
+            const ctxYear = document.getElementById('yearChart').getContext('2d');
+            yearChartInstance = new Chart(ctxYear, {
+                type: 'bar',
+                data: {
+                    labels: ['ชั้นปีที่ 1', 'ชั้นปีที่ 2', 'ชั้นปีที่ 3', 'ชั้นปีที่ 4'],
+                    datasets: [
+                        { label: 'ผ่านเกณฑ์', data: yearPassed, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'ไม่ผ่านเกณฑ์', data: yearFailed, backgroundColor: '#f43f5e', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { family: 'Prompt' } } },
+                        y: { beginAtZero: true, ticks: { font: { family: 'Prompt' } } }
+                    },
+                    plugins: { legend: { position: 'top', labels: { font: { family: 'Prompt' } } } }
+                }
+            });
+        }
+
+        function updateTable(data) {
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.parentElement.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                tbody.parentElement.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                const itemsToDisplay = data.slice(0, 100);
+
+                itemsToDisplay.forEach((row) => {
+                    const statusClass = row.status === 'ผ่าน' 
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                        : 'bg-rose-100 text-rose-700 border-rose-200';
+                    const statusIcon = row.status === 'ผ่าน'
+                        ? '<i data-lucide="check" class="w-3 h-3 mr-1 inline"></i>'
+                        : '<i data-lucide="x" class="w-3 h-3 mr-1 inline"></i>';
+
+                    // Use row.name if available, else piece together firstName/lastName
+                    let firstNameStr = row.firstName || (row.name ? row.name.split(' ')[0] : '');
+                    let lastNameStr = row.lastName || (row.name ? row.name.split(' ').slice(1).join(' ') : '');
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors duration-150";
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 text-center text-slate-500">${row.id}</td>
+                        <td class="px-6 py-4 text-center font-medium text-slate-700">${row.studentId}</td>
+                        <td class="px-6 py-4 text-slate-700">${firstNameStr}</td>
+                        <td class="px-6 py-4 text-slate-700">${lastNameStr}</td>
+                        <td class="px-6 py-4 text-center text-slate-600">ปี ${row.year}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusClass}">
+                                ${statusIcon} ${row.status}
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                lucide.createIcons();
+            }
+            document.getElementById('showingCount').textContent = data.length.toLocaleString();
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const yearVal = document.getElementById('yearFilter').value;
+            const statusVal = document.getElementById('statusFilter').value;
+
+            currentData = originalData.filter(item => {
+                let nameStr = item.name || `${item.firstName} ${item.lastName}`;
+                const matchesSearch = 
+                    item.studentId.toLowerCase().includes(searchTerm) ||
+                    nameStr.toLowerCase().includes(searchTerm);
+                
+                const matchesYear = yearVal === 'all' || String(item.year) === yearVal;
+                const matchesStatus = statusVal === 'all' || item.status === statusVal;
+
+                return matchesSearch && matchesYear && matchesStatus;
+            });
+
+            updateKPIs(currentData);
+            updateCharts(currentData);
+            updateTable(currentData);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('yearFilter').addEventListener('change', (e) => switchTab(e.target.value));
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+        window.onload = () => {
+            fetchDataFromGS();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCNNON Dashboard 2568</title>
+    
+    <!-- Google Fonts: Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt', 'sans-serif'], },
+                    colors: { bcnnon: { light: '#e0f2fe', DEFAULT: '#0284c7', dark: '#0369a1', } }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Chart.js & Phosphor Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Component Classes */
+        .card { @apply bg-white rounded-2xl shadow-sm border border-slate-100 p-6 relative; }
+        .table-th { @apply px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200 sticky top-0; }
+        .table-td { @apply px-4 py-3 whitespace-nowrap text-sm text-slate-700 border-b border-slate-100; }
+        
+        /* Modal & Form Classes */
+        .modal-overlay { @apply fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4; }
+        .modal-overlay.active { @apply flex; }
+        .form-input { @apply w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bcnnon focus:border-bcnnon; }
+        .form-label { @apply block text-sm font-medium text-slate-700 mb-1; }
+        
+        /* Global Loader Overlay */
+        #globalLoader { @apply fixed inset-0 bg-white/80 backdrop-blur-sm z-[200] flex flex-col items-center justify-center transition-opacity duration-300; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #0284c7; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Global Loader -->
+    <div id="globalLoader">
+        <div class="spinner mb-4"></div>
+        <p class="text-bcnnon-dark font-medium animate-pulse text-lg" id="loaderText">กำลังเชื่อมต่อฐานข้อมูล...</p>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-bcnnon-dark text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-[1600px] mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="ph-fill ph-hospital text-4xl text-sky-200"></i>
+                <div>
+                    <h1 class="text-xl font-bold leading-tight">ระบบติดตามงบประมาณและ KPI ปี 2568</h1>
+                    <p class="text-sm text-sky-100">วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น (BCNNON)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-sm font-medium">
+                <button onclick="fetchDataFromGAS()" class="flex items-center gap-1 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-colors" title="รีเฟรชข้อมูล">
+                    <i class="ph ph-arrows-clockwise text-lg"></i> ซิงค์ข้อมูล
+                </button>
+                <button onclick="openModal()" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-full transition-colors shadow-sm">
+                    <i class="ph ph-plus-circle text-lg"></i> บันทึกข้อมูล
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto px-6 py-8 space-y-8">
+
+        <!-- 1. แจ้งเตือน (Alerts) -->
+        <section>
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="ph-fill ph-warning-circle text-amber-500"></i> Alerts & Risks (รายการที่ต้องเร่งติดตาม)
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                    <div class="p-2 bg-red-100 text-red-600 rounded-lg"><i class="ph ph-money text-xl"></i></div>
+                    <div>
+                        <p class="text-sm font-medium text-red-800">โครงการเบิกจ่ายต่ำกว่า 60%</p>
+                        <h3 class="text-2xl font-bold text-red-600"><span id="alert-spent-60">0</span> <span class="text-sm font-normal text-red-700">โครงการ</span></h3>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                    <div class="p-2 bg-amber-100 text-amber-600 rounded-lg"><i class="ph ph-prohibit text-xl"></i></div>
+                    <div>
+                        <p class="text-sm font-medium text-amber-800">โครงการยังไม่เบิกจ่าย</p>
+                        <h3 class="text-2xl font-bold text-amber-600"><span id="alert-zero-spent">0</span> <span class="text-sm font-normal text-amber-700">โครงการ</span></h3>
+                    </div>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
+                    <div class="p-2 bg-orange-100 text-orange-600 rounded-lg"><i class="ph ph-target text-xl"></i></div>
+                    <div>
+                        <p class="text-sm font-medium text-orange-800">KPI ไม่บรรลุเป้าหมาย</p>
+                        <h3 class="text-2xl font-bold text-orange-600"><span id="alert-kpi-risk">0</span> <span class="text-sm font-normal text-orange-700">ตัวชี้วัด</span></h3>
+                    </div>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                    <div class="p-2 bg-blue-100 text-blue-600 rounded-lg"><i class="ph ph-chart-line-down text-xl"></i></div>
+                    <div>
+                        <p class="text-sm font-medium text-blue-800">ยุทธศาสตร์ต้องเร่งรัด</p>
+                        <h3 class="text-lg font-bold text-blue-700 leading-tight truncate w-full max-w-[150px]" id="alert-strategy-risk">-</h3>
+                        <p class="text-xs text-blue-600">ผลสำเร็จ KPI ต่ำสุด</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. ภาพรวมงบประมาณประจำปี (Executive Summary) -->
+        <section>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                <div class="card lg:col-span-2 bg-gradient-to-br from-bcnnon to-bcnnon-dark text-white border-none">
+                    <p class="text-sky-100 text-sm font-medium mb-1">งบประมาณที่ได้รับทั้งหมด</p>
+                    <h3 class="text-3xl font-bold mb-4" id="val-total-budget">฿ 0</h3>
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <p class="text-xs text-sky-200">ยอดใช้จริง (฿)</p>
+                            <p class="text-lg font-semibold" id="val-total-spent">0</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-sky-200">คงเหลือ (฿)</p>
+                            <p class="text-lg font-semibold" id="val-total-remain">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card flex flex-col justify-center items-center text-center">
+                    <div class="w-16 h-16 rounded-full border-4 border-emerald-500 flex items-center justify-center mb-2">
+                        <span class="text-xl font-bold text-emerald-600" id="val-percent-spent">0%</span>
+                    </div>
+                    <p class="text-sm font-medium text-slate-600">การเบิกจ่าย</p>
+                </div>
+                <div class="card flex flex-col justify-center items-center text-center">
+                    <div class="w-16 h-16 rounded-full border-4 border-bcnnon flex items-center justify-center mb-2">
+                        <span class="text-xl font-bold text-bcnnon" id="val-percent-kpi">0%</span>
+                    </div>
+                    <p class="text-sm font-medium text-slate-600">ความสำเร็จ KPI</p>
+                </div>
+                <div class="card flex flex-col justify-center">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="p-1.5 bg-indigo-100 text-indigo-600 rounded"><i class="ph-fill ph-folder"></i></div>
+                        <p class="text-sm font-medium text-slate-500">โครงการ</p>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800" id="val-total-projects">0</h3>
+                </div>
+                <div class="card flex flex-col justify-center">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="p-1.5 bg-violet-100 text-violet-600 rounded"><i class="ph-fill ph-activity"></i></div>
+                        <p class="text-sm font-medium text-slate-500">กิจกรรม</p>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800" id="val-total-activities">0</h3>
+                </div>
+                <div class="card flex flex-col justify-center">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="p-1.5 bg-pink-100 text-pink-600 rounded"><i class="ph-fill ph-chart-polar"></i></div>
+                        <p class="text-sm font-medium text-slate-500">KPI รวม</p>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800" id="val-total-kpi">0</h3>
+                    <p class="text-xs text-green-600 mt-1">บรรลุแล้ว <span id="val-passed-kpi">0</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. กราฟวิเคราะห์ข้อมูล (Charts) -->
+        <section>
+            <h2 class="text-xl font-bold text-slate-800 mb-4 border-l-4 border-bcnnon pl-3">การจัดสรรและเบิกจ่ายงบประมาณ (Budget Allocation & Utilization)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="card flex flex-col h-full">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-4 text-center">สัดส่วนงบตามพันธกิจ</h3>
+                    <div class="flex-1 relative min-h-[200px]"><canvas id="chartMission"></canvas></div>
+                </div>
+                <div class="card flex flex-col h-full">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-4 text-center">สัดส่วนงบตามยุทธศาสตร์</h3>
+                    <div class="flex-1 relative min-h-[200px]"><canvas id="chartStrategy"></canvas></div>
+                </div>
+                <div class="card lg:col-span-2 flex flex-col h-full">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-4">งบประมาณและเบิกจ่ายจำแนกตามกลุ่มงาน</h3>
+                    <div class="flex-1 relative min-h-[200px]"><canvas id="chartWorkGroup"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-xl font-bold text-slate-800 mb-4 border-l-4 border-emerald-500 pl-3">ผลการบรรลุเป้าหมายตัวชี้วัด (KPI Achievement)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-4">สถานะ KPI จำแนกตามยุทธศาสตร์</h3>
+                    <div class="relative h-[250px]"><canvas id="chartKpiStrategy"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-4">ความสำเร็จ KPI ตามพันธกิจ (ประเมินจากผลสำเร็จแต่ละโครงการ)</h3>
+                    <div class="relative h-[250px]"><canvas id="chartKpiMission"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. ตารางรายละเอียด (Data Tables) -->
+        <section class="space-y-6">
+            <h2 class="text-xl font-bold text-slate-800 border-l-4 border-indigo-500 pl-3">รายละเอียดโครงการและกิจกรรม (Project & Activity Details)</h2>
+            
+            <div class="card p-0 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700">ตารางสรุปการเบิกจ่ายและสถานะรายโครงการ</h3>
+                </div>
+                <div class="overflow-x-auto max-h-[500px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 z-10 sticky top-0">
+                            <tr>
+                                <th class="table-th">รหัส</th>
+                                <th class="table-th min-w-[200px]">ชื่อโครงการ</th>
+                                <th class="table-th min-w-[150px]">ยุทธศาสตร์/พันธกิจ</th>
+                                <th class="table-th text-right">งบที่ได้รับ</th>
+                                <th class="table-th text-right">ใช้จริง</th>
+                                <th class="table-th text-right">คงเหลือ</th>
+                                <th class="table-th text-center">% เบิกจ่าย</th>
+                                <th class="table-th text-center">สถานะ KPI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectTableBody">
+                            <tr><td colspan="8" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card p-0 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 bg-slate-50">
+                    <h3 class="font-bold text-slate-700">ตารางการใช้เงินรายกิจกรรม (จำแนกตามกลุ่มงานและหมวดเงิน)</h3>
+                </div>
+                <div class="overflow-x-auto max-h-[500px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 z-10 sticky top-0">
+                            <tr>
+                                <th class="table-th">รหัสกิจกรรม</th>
+                                <th class="table-th min-w-[250px]">ชื่อกิจกรรม</th>
+                                <th class="table-th">โครงการที่สังกัด</th>
+                                <th class="table-th">กลุ่มงาน</th>
+                                <th class="table-th">หมวดเงิน</th>
+                                <th class="table-th text-right">งบประมาณ</th>
+                                <th class="table-th text-right">ใช้จริง</th>
+                                <th class="table-th text-center">ความก้าวหน้า</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityTableBody">
+                            <tr><td colspan="8" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Data Entry Modal -->
+    <div id="dataEntryModal" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph-fill ph-database text-bcnnon"></i> ฟอร์มบันทึกข้อมูลงบประมาณและ KPI
+                </h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-200 transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="flex px-6 border-b border-slate-200 bg-white">
+                <button onclick="switchTab('projectTab')" id="btn-projectTab" class="py-3 px-4 font-medium text-sm border-b-2 border-bcnnon text-bcnnon">ข้อมูลโครงการ (Project)</button>
+                <button onclick="switchTab('activityTab')" id="btn-activityTab" class="py-3 px-4 font-medium text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700">ข้อมูลกิจกรรม (Activity)</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                <!-- Project Form -->
+                <form id="projectForm" class="space-y-6" onsubmit="submitForm(event, 'projectForm', 'addProject')">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <h3 class="md:col-span-2 text-sm font-bold text-slate-700 border-b pb-2 mb-2">ข้อมูลพื้นฐานโครงการ</h3>
+                        <div>
+                            <label class="form-label">รหัสโครงการ</label>
+                            <input type="text" name="projectId" class="form-input" required placeholder="เช่น P68-001">
+                        </div>
+                        <div>
+                            <label class="form-label">ชื่อโครงการ</label>
+                            <input type="text" name="projectName" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label">ยุทธศาสตร์</label>
+                            <select name="strategy" class="form-input" required>
+                                <option value="">-- เลือกยุทธศาสตร์ --</option>
+                                <option value="ยุทธศาสตร์ที่ 1">ยุทธศาสตร์ที่ 1</option>
+                                <option value="ยุทธศาสตร์ที่ 2">ยุทธศาสตร์ที่ 2</option>
+                                <option value="ยุทธศาสตร์ที่ 3">ยุทธศาสตร์ที่ 3</option>
+                                <option value="ยุทธศาสตร์ที่ 4">ยุทธศาสตร์ที่ 4</option>
+                                <option value="ยุทธศาสตร์ที่ 5">ยุทธศาสตร์ที่ 5</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">พันธกิจ</label>
+                            <select name="mission" class="form-input" required>
+                                <option value="">-- เลือกพันธกิจ --</option>
+                                <option value="ผลิตบัณฑิต">ผลิตบัณฑิต</option>
+                                <option value="วิจัยและนวัตกรรม">วิจัยและนวัตกรรม</option>
+                                <option value="บริการวิชาการ">บริการวิชาการ</option>
+                                <option value="ทำนุบำรุงศิลปวัฒนธรรม">ทำนุบำรุงศิลปวัฒนธรรม</option>
+                                <option value="บริหารจัดการองค์กร">บริหารจัดการองค์กร</option>
+                            </select>
+                        </div>
+
+                        <h3 class="md:col-span-2 text-sm font-bold text-slate-700 border-b pb-2 mt-4 mb-2">ข้อมูลการเงินโครงการ</h3>
+                        <div>
+                            <label class="form-label">งบประมาณที่ได้รับ (บาท)</label>
+                            <input type="number" name="budgetAllocated" class="form-input" required min="0">
+                        </div>
+                        <div>
+                            <label class="form-label">ยอดเงินที่ใช้จริง (บาท)</label>
+                            <input type="number" name="budgetSpent" class="form-input" value="0" min="0">
+                        </div>
+
+                        <h3 class="md:col-span-2 text-sm font-bold text-slate-700 border-b pb-2 mt-4 mb-2">ข้อมูลตัวชี้วัด (KPI) ระดับโครงการ</h3>
+                        <div class="md:col-span-2">
+                            <label class="form-label">ชื่อตัวชี้วัด (KPI)</label>
+                            <input type="text" name="kpiName" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label">ค่าเป้าหมาย (Target)</label>
+                            <input type="text" name="kpiTarget" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label">ผลลัพธ์ที่ได้ (Result)</label>
+                            <input type="text" name="kpiResult" class="form-input">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="form-label">สถานะความสำเร็จ KPI</label>
+                            <select name="kpiStatus" class="form-input" required>
+                                <option value="อยู่ระหว่างดำเนินการ">อยู่ระหว่างดำเนินการ</option>
+                                <option value="บรรลุเป้าหมาย">บรรลุเป้าหมาย</option>
+                                <option value="ไม่บรรลุเป้าหมาย">ไม่บรรลุเป้าหมาย</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">ยกเลิก</button>
+                        <button type="submit" class="px-6 py-2 text-sm font-medium text-white bg-bcnnon rounded-lg hover:bg-bcnnon-dark flex items-center gap-2">
+                            <i class="ph ph-floppy-disk"></i> บันทึกข้อมูลโครงการ
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Activity Form -->
+                <form id="activityForm" class="space-y-6 hidden" onsubmit="submitForm(event, 'activityForm', 'addActivity')">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <h3 class="md:col-span-2 text-sm font-bold text-slate-700 border-b pb-2 mb-2">ข้อมูลกิจกรรมและสังกัด</h3>
+                        <div>
+                            <label class="form-label">รหัสกิจกรรม</label>
+                            <input type="text" name="activityId" class="form-input" required placeholder="เช่น A68-01-01">
+                        </div>
+                        <div>
+                            <label class="form-label">ชื่อกิจกรรม</label>
+                            <input type="text" name="activityName" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="form-label">รหัสโครงการที่สังกัด</label>
+                            <input type="text" name="refProjectId" class="form-input" required placeholder="เช่น P68-001">
+                        </div>
+                        <div>
+                            <label class="form-label">กลุ่มงาน (โครงสร้างองค์กร)</label>
+                            <select name="workGroup" class="form-input" required>
+                                <option value="">-- เลือกกลุ่มงาน --</option>
+                                <option value="กลุ่มงานบริหารและยุทธศาสตร์">กลุ่มงานบริหารและยุทธศาสตร์</option>
+                                <option value="กลุ่มงานวิชาการ">กลุ่มงานวิชาการ</option>
+                                <option value="กลุ่มงานพัฒนานักศึกษา">กลุ่มงานพัฒนานักศึกษา</option>
+                                <option value="กลุ่มงานวิจัยและบริการวิชาการ">กลุ่มงานวิจัยและบริการวิชาการ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">ประเภทเงิน / หมวดเงิน</label>
+                            <select name="budgetCategory" class="form-input" required>
+                                <option value="">-- เลือกหมวดเงิน --</option>
+                                <option value="งบบุคลากร">งบบุคลากร</option>
+                                <option value="ค่าตอบแทน ใช้สอย วัสดุ">ค่าตอบแทน ใช้สอย วัสดุ</option>
+                                <option value="ค่าครุภัณฑ์">ค่าครุภัณฑ์</option>
+                                <option value="ค่าสิ่งก่อสร้าง">ค่าสิ่งก่อสร้าง</option>
+                                <option value="เงินอุดหนุน">เงินอุดหนุน</option>
+                            </select>
+                        </div>
+
+                        <h3 class="md:col-span-2 text-sm font-bold text-slate-700 border-b pb-2 mt-4 mb-2">ข้อมูลการเงินกิจกรรม</h3>
+                        <div>
+                            <label class="form-label">งบประมาณกิจกรรม (บาท)</label>
+                            <input type="number" name="activityBudget" class="form-input" required min="0">
+                        </div>
+                        <div>
+                            <label class="form-label">ยอดเงินที่ใช้กิจกรรม (บาท)</label>
+                            <input type="number" name="activitySpent" class="form-input" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">ยกเลิก</button>
+                        <button type="submit" class="px-6 py-2 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 flex items-center gap-2">
+                            <i class="ph ph-floppy-disk"></i> บันทึกข้อมูลกิจกรรม
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-sm">
+        <p>&copy; 2568 วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น (BCNNON) - ระบบสารสนเทศเพื่อการบริหารจัดการ</p>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. CONFIGURATION (ตั้งค่า GAS URL ของคุณ)
+        // ==========================================
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwNvn3S8XgYxYTfIhTGYJpt4PiIiGCaPZxt5v0fvcDzqya48dMreuyYUQRcVjgPSaxpvg/exec';
+
+        // Chart Object References
+        let cMission, cStrategy, cWorkGroup, cKpiStrategy, cKpiMission;
+
+        // Utilities
+        const formatMoney = (num) => new Intl.NumberFormat('th-TH').format(num);
+        const parseNum = (val) => Number(val) || 0;
+
+        // ==========================================
+        // 2. MODAL & UI LOGIC
+        // ==========================================
+        function openModal() { document.getElementById('dataEntryModal').classList.add('active'); }
+        function closeModal() { 
+            document.getElementById('dataEntryModal').classList.remove('active');
+            document.getElementById('projectForm').reset();
+            document.getElementById('activityForm').reset();
+        }
+        function switchTab(tabId) {
+            document.getElementById('btn-projectTab').className = 'py-3 px-4 font-medium text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+            document.getElementById('btn-activityTab').className = 'py-3 px-4 font-medium text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+            document.getElementById('projectForm').classList.add('hidden');
+            document.getElementById('activityForm').classList.add('hidden');
+            document.getElementById('btn-' + tabId).className = 'py-3 px-4 font-medium text-sm border-b-2 border-bcnnon text-bcnnon';
+            document.getElementById(tabId.replace('Tab', 'Form')).classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 3. FETCH & PROCESS DATA (ดึงข้อมูลจาก GAS)
+        // ==========================================
+        async function fetchDataFromGAS() {
+            const loader = document.getElementById('globalLoader');
+            const loaderText = document.getElementById('loaderText');
+            loader.style.display = 'flex';
+            loaderText.innerText = 'กำลังเชื่อมต่อและดึงข้อมูลจากฐานข้อมูล...';
+            
+            try {
+                const response = await fetch(GAS_WEB_APP_URL, { method: "GET", redirect: "follow" });
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error("ระบบไม่ได้คืนค่าเป็น JSON (อาจจะลืม Deploy เวอร์ชันใหม่ หรือ URL ผิด)");
+                }
+
+                if (data && data.status === 'success') {
+                    // ส่งเข้าสู่กระบวนการคำนวณและวาดกราฟ
+                    processData(data.projects || [], data.activities || []);
+                } else {
+                    throw new Error(data.message || "ดึงข้อมูลไม่สำเร็จ");
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                alert("เกิดข้อผิดพลาดในการดึงข้อมูล: \n" + error.message);
+                // เคลียร์หน้าจอให้เป็น 0/ว่างเปล่า หากดึงข้อมูลไม่ได้ (ไม่มี Mock Data)
+                processData([], []);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function processData(projects, activities) {
+            // -- ตัวแปรสะสมเพื่อทำ Aggregation --
+            let tAllocated = 0, tSpent = 0;
+            let kpiPassedCount = 0;
+            let alerts = { spent60: 0, zeroSpent: 0, kpiRisk: 0 };
+            
+            let aggMission = {}, aggStrategy = {}, aggKpiStrategy = {}, aggKpiMission = {};
+            let aggWorkGroup = {};
+
+            // วนรอบ Project
+            projects.forEach(p => {
+                const budget = parseNum(p['งบประมาณที่ได้รับ']);
+                const spent = parseNum(p['ยอดเงินที่ใช้จริง']);
+                tAllocated += budget;
+                tSpent += spent;
+
+                const percentSpent = budget > 0 ? (spent/budget)*100 : 0;
+                if (percentSpent < 60 && budget > 0) alerts.spent60++;
+                if (spent === 0 && budget > 0) alerts.zeroSpent++;
+
+                const kStatus = p['สถานะความสำเร็จ KPI'];
+                if (kStatus === 'บรรลุเป้าหมาย') kpiPassedCount++;
+                if (kStatus === 'ไม่บรรลุเป้าหมาย') alerts.kpiRisk++;
+
+                // ยุทธศาสตร์
+                const strategy = p['ยุทธศาสตร์'] || 'ไม่ระบุยุทธศาสตร์';
+                aggStrategy[strategy] = (aggStrategy[strategy] || 0) + budget;
+                if (!aggKpiStrategy[strategy]) aggKpiStrategy[strategy] = { pass: 0, fail: 0, pending: 0 };
+                if (kStatus === 'บรรลุเป้าหมาย') aggKpiStrategy[strategy].pass++;
+                else if (kStatus === 'ไม่บรรลุเป้าหมาย') aggKpiStrategy[strategy].fail++;
+                else aggKpiStrategy[strategy].pending++;
+
+                // พันธกิจ (งบประมาณ และ KPI)
+                const mission = p['พันธกิจ'] || 'ไม่ระบุพันธกิจ';
+                aggMission[mission] = (aggMission[mission] || 0) + budget;
+                if (!aggKpiMission[mission]) aggKpiMission[mission] = { pass: 0, total: 0 };
+                aggKpiMission[mission].total++;
+                if (kStatus === 'บรรลุเป้าหมาย') aggKpiMission[mission].pass++;
+            });
+
+            // วนรอบ Activity
+            activities.forEach(a => {
+                const budget = parseNum(a['งบประมาณกิจกรรม']);
+                const spent = parseNum(a['ยอดเงินที่ใช้กิจกรรม']);
+                const wg = a['กลุ่มงาน (โครงสร้างองค์กร)'] || 'ไม่ระบุกลุ่มงาน';
+                
+                if (!aggWorkGroup[wg]) aggWorkGroup[wg] = { budget: 0, spent: 0 };
+                aggWorkGroup[wg].budget += budget;
+                aggWorkGroup[wg].spent += spent;
+            });
+
+            // อัปเดต HTML UI - ภาพรวม
+            document.getElementById('val-total-budget').innerText = `฿ ${formatMoney(tAllocated)}`;
+            document.getElementById('val-total-spent').innerText = formatMoney(tSpent);
+            document.getElementById('val-total-remain').innerText = formatMoney(tAllocated - tSpent);
+            
+            const percSpent = tAllocated > 0 ? ((tSpent/tAllocated)*100).toFixed(1) : 0;
+            const percKpi = projects.length > 0 ? ((kpiPassedCount/projects.length)*100).toFixed(1) : 0;
+            
+            document.getElementById('val-percent-spent').innerText = `${percSpent}%`;
+            document.getElementById('val-percent-kpi').innerText = `${percKpi}%`;
+            document.getElementById('val-total-projects').innerText = projects.length;
+            document.getElementById('val-total-activities').innerText = activities.length;
+            document.getElementById('val-total-kpi').innerText = projects.length; // จำนวนตัวชี้วัดผูกกับจำนวนโครงการ
+            document.getElementById('val-passed-kpi').innerText = kpiPassedCount;
+
+            // อัปเดต HTML UI - Alerts
+            document.getElementById('alert-spent-60').innerText = alerts.spent60;
+            document.getElementById('alert-zero-spent').innerText = alerts.zeroSpent;
+            document.getElementById('alert-kpi-risk').innerText = alerts.kpiRisk;
+
+            let worstStrategy = "-", lowestPerc = 100;
+            for (let [s, counts] of Object.entries(aggKpiStrategy)) {
+                let total = counts.pass + counts.fail + counts.pending;
+                if(total > 0) {
+                    let perc = (counts.pass / total) * 100;
+                    if(perc < lowestPerc) { lowestPerc = perc; worstStrategy = s; }
+                }
+            }
+            document.getElementById('alert-strategy-risk').innerText = Object.keys(aggKpiStrategy).length > 0 ? worstStrategy : "-";
+
+            // สั่ง Render กราฟและตาราง
+            renderCharts(aggMission, aggStrategy, aggWorkGroup, aggKpiStrategy, aggKpiMission);
+            renderTables(projects, activities);
+        }
+
+        // ==========================================
+        // 4. CHART.JS RENDERING
+        // ==========================================
+        function renderCharts(aggMission, aggStrategy, aggWorkGroup, aggKpiStrategy, aggKpiMission) {
+            const fontPref = {family: 'Prompt'};
+            const colors = ['#0284c7', '#0d9488', '#059669', '#d97706', '#dc2626', '#4f46e5', '#8b5cf6'];
+
+            if(cMission) cMission.destroy();
+            cMission = new Chart(document.getElementById('chartMission'), {
+                type: 'pie',
+                data: { labels: Object.keys(aggMission), datasets: [{ data: Object.values(aggMission), backgroundColor: colors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {font: fontPref} } } }
+            });
+
+            if(cStrategy) cStrategy.destroy();
+            cStrategy = new Chart(document.getElementById('chartStrategy'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(aggStrategy), datasets: [{ data: Object.values(aggStrategy), backgroundColor: colors, borderWidth: 0, cutout: '60%' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {font: fontPref} } } }
+            });
+
+            if(cWorkGroup) cWorkGroup.destroy();
+            const wgLabels = Object.keys(aggWorkGroup);
+            cWorkGroup = new Chart(document.getElementById('chartWorkGroup'), {
+                type: 'bar',
+                data: {
+                    labels: wgLabels,
+                    datasets: [
+                        { label: 'งบประมาณ', data: wgLabels.map(l => aggWorkGroup[l].budget), backgroundColor: '#e2e8f0', borderRadius: 4 },
+                        { label: 'เบิกจ่ายแล้ว', data: wgLabels.map(l => aggWorkGroup[l].spent), backgroundColor: '#0284c7', borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y:{ticks:{font:fontPref}}, x:{ticks:{font:fontPref}} }, plugins: { legend: { labels: {font: fontPref} } } }
+            });
+
+            if(cKpiStrategy) cKpiStrategy.destroy();
+            const ksLabels = Object.keys(aggKpiStrategy);
+            cKpiStrategy = new Chart(document.getElementById('chartKpiStrategy'), {
+                type: 'bar',
+                data: {
+                    labels: ksLabels,
+                    datasets: [
+                        { label: 'บรรลุ', data: ksLabels.map(l => aggKpiStrategy[l].pass), backgroundColor: '#059669' },
+                        { label: 'ไม่บรรลุ', data: ksLabels.map(l => aggKpiStrategy[l].fail), backgroundColor: '#dc2626' },
+                        { label: 'รอประเมิน', data: ksLabels.map(l => aggKpiStrategy[l].pending), backgroundColor: '#f59e0b' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x:{stacked: true, ticks:{font:fontPref}}, y:{stacked:true, ticks:{font:fontPref}} }, plugins: { legend: { position: 'bottom', labels: {font: fontPref} } } }
+            });
+
+            if(cKpiMission) cKpiMission.destroy();
+            const kmLabels = Object.keys(aggKpiMission);
+            // คำนวณร้อยละของแต่ละพันธกิจ
+            const kmPercents = kmLabels.map(l => aggKpiMission[l].total > 0 ? (aggKpiMission[l].pass / aggKpiMission[l].total) * 100 : 0);
+            cKpiMission = new Chart(document.getElementById('chartKpiMission'), {
+                type: 'bar',
+                data: {
+                    labels: kmLabels,
+                    datasets: [{ label: 'ร้อยละความสำเร็จ (%)', data: kmPercents, backgroundColor: colors, borderRadius: 4 }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x:{max: 100, ticks:{font:fontPref}}, y:{ticks:{font:fontPref}} }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // ==========================================
+        // 5. TABLE RENDERING & DATA SUBMISSION
+        // ==========================================
+        function renderTables(projects, activities) {
+            const tbodyProject = document.getElementById('projectTableBody');
+            tbodyProject.innerHTML = '';
+            
+            if(projects.length === 0) {
+                tbodyProject.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูลโครงการ</td></tr>';
+            } else {
+                projects.forEach(p => {
+                    const b = parseNum(p['งบประมาณที่ได้รับ']);
+                    const s = parseNum(p['ยอดเงินที่ใช้จริง']);
+                    const percent = b > 0 ? ((s/b)*100).toFixed(1) : 0;
+                    let pColor = 'text-slate-800';
+                    if (percent == 100) pColor = 'text-green-600 font-bold';
+                    else if (percent < 60) pColor = 'text-red-600 font-bold';
+
+                    let kpiBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">รอดำเนินการ</span>';
+                    if (p['สถานะความสำเร็จ KPI'] === 'บรรลุเป้าหมาย') kpiBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">บรรลุ</span>';
+                    else if (p['สถานะความสำเร็จ KPI'] === 'ไม่บรรลุเป้าหมาย') kpiBadge = '<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">ไม่บรรลุ</span>';
+
+                    tbodyProject.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="table-td font-medium">${p['รหัสโครงการ'] || '-'}</td>
+                            <td class="table-td whitespace-normal">${p['ชื่อโครงการ'] || '-'}</td>
+                            <td class="table-td text-xs text-slate-500">${p['ยุทธศาสตร์']}<br>${p['พันธกิจ']}</td>
+                            <td class="table-td text-right">${formatMoney(b)}</td>
+                            <td class="table-td text-right">${formatMoney(s)}</td>
+                            <td class="table-td text-right">${formatMoney(b-s)}</td>
+                            <td class="table-td text-center ${pColor}">${percent}%</td>
+                            <td class="table-td text-center">${kpiBadge}</td>
+                        </tr>`;
+                });
+            }
+
+            const tbodyActivity = document.getElementById('activityTableBody');
+            tbodyActivity.innerHTML = '';
+            
+            if(activities.length === 0) {
+                tbodyActivity.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูลกิจกรรม</td></tr>';
+            } else {
+                activities.forEach(a => {
+                    const b = parseNum(a['งบประมาณกิจกรรม']);
+                    const s = parseNum(a['ยอดเงินที่ใช้กิจกรรม']);
+                    const progress = b > 0 ? Math.round((s/b)*100) : 0;
+                    const barColor = progress === 100 ? 'bg-green-500' : (progress < 30 ? 'bg-red-500' : 'bg-blue-500');
+                    
+                    tbodyActivity.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="table-td font-medium">${a['รหัสกิจกรรม'] || '-'}</td>
+                            <td class="table-td whitespace-normal">${a['ชื่อกิจกรรม'] || '-'}</td>
+                            <td class="table-td text-xs text-slate-500">${a['รหัสโครงการที่สังกัด'] || '-'}</td>
+                            <td class="table-td text-sm">${a['กลุ่มงาน (โครงสร้างองค์กร)'] || '-'}</td>
+                            <td class="table-td text-sm"><span class="bg-slate-100 px-2 py-1 rounded text-xs">${a['ประเภทเงิน / หมวดเงิน'] || '-'}</span></td>
+                            <td class="table-td text-right">${formatMoney(b)}</td>
+                            <td class="table-td text-right">${formatMoney(s)}</td>
+                            <td class="table-td text-center">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-full bg-slate-200 rounded-full h-2"><div class="${barColor} h-2 rounded-full" style="width: ${progress}%"></div></div>
+                                    <span class="text-xs w-8 text-right font-medium">${progress}%</span>
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+            }
+        }
+
+        async function submitForm(event, formId, actionType) {
+            event.preventDefault();
+            const form = document.getElementById(formId);
+            const btn = form.querySelector('button[type="submit"]');
+            const originalHtml = btn.innerHTML;
+            
+            // เตรียมข้อมูลสำหรับส่งไปยัง GAS แบบ application/x-www-form-urlencoded
+            const formData = new FormData(form);
+            formData.append('action', actionType);
+            const searchParams = new URLSearchParams(formData).toString();
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> กำลังบันทึก...';
+
+            try {
+                // ส่งข้อมูล (ใช้ POST แบบ no-cors ข้ามโดเมน เพื่อแก้ปัญหา CORS ของ GAS)
+                await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: searchParams,
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                });
+                
+                // เนื่องจาก no-cors จะคืนค่าแบบ Opaque เราจะถือว่าสำเร็จถ้าไม่ติด Network Error
+                alert('บันทึกข้อมูลเรียบร้อยแล้ว');
+                closeModal();
+                
+                // แสดงสถานะโหลดระหว่างรอ Google Sheets อัปเดตข้อมูล
+                const loader = document.getElementById('globalLoader');
+                const loaderText = document.getElementById('loaderText');
+                loader.style.display = 'flex';
+                loaderText.innerText = 'กำลังจัดเตรียมข้อมูลใหม่ โปรดรอสักครู่...';
+
+                // หน่วงเวลา 2 วินาทีให้ Google Sheets เขียนข้อมูลลงเซลล์เสร็จก่อนดึงค่าใหม่
+                setTimeout(() => {
+                    fetchDataFromGAS(); 
+                }, 2000);
+                
+            } catch (error) {
+                console.error("Submit Error:", error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย');
+                closeModal();
+                fetchDataFromGAS(); 
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // --- ทำงานทันทีเมื่อโหลดหน้าเว็บเสร็จ ---
+        window.onload = () => {
+            fetchDataFromGAS();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nursing Student Management System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
+            background-size: cover;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        .input-style {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            background-color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s;
+        }
+        .input-style:focus {
+            outline: none;
+            border-color: #ec4899;
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
+        }
+
+        /* Fixed graph container to prevent stretching */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Hide sections initially */
+        #app-container, #form-section, #dashboard-section {
+            display: none;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <!-- ================= LOGIN SECTION ================= -->
+    <div id="login-section" class="min-h-screen flex items-center justify-center p-4">
+        <div class="glass p-8 rounded-2xl w-full max-w-md text-center transform transition-all">
+            <div class="w-20 h-20 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <i class="fa-solid fa-user-nurse text-white text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">เข้าสู่ระบบจัดการข้อมูล</h2>
+            
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="mb-4 text-left">
+                    <label class="block text-sm font-medium mb-1">ชื่อผู้ใช้งาน (Username)</label>
+                    <input type="text" id="username" class="input-style" placeholder="กรอกชื่อผู้ใช้งาน" required>
+                </div>
+                <div class="mb-6 text-left">
+                    <label class="block text-sm font-medium mb-1">รหัสผ่าน (Password)</label>
+                    <input type="password" id="password" class="input-style" placeholder="กรอกรหัสผ่าน" required>
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity shadow-lg">
+                    <i class="fa-solid fa-right-to-bracket mr-2"></i> เข้าสู่ระบบ
+                </button>
+            </form>
+            <p class="mt-4 text-sm text-gray-500">Hint: admin / 1234</p>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP SECTION ================= -->
+    <div id="app-container" class="min-h-screen flex flex-col">
+        
+        <!-- Navbar -->
+        <nav class="glass sticky top-0 z-50 px-6 py-4 flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center text-white">
+                    <i class="fa-solid fa-notes-medical"></i>
+                </div>
+                <h1 class="text-xl font-bold text-gray-800 hidden sm:block">Nursing Student DB</h1>
+            </div>
+            <div class="flex gap-2 sm:gap-4">
+                <button onclick="switchTab('form')" id="tab-form" class="px-4 py-2 rounded-lg font-medium bg-rose-500 text-white transition-colors">
+                    <i class="fa-solid fa-plus-circle mr-1"></i> เพิ่มข้อมูล
+                </button>
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-white/50 transition-colors">
+                    <i class="fa-solid fa-chart-line mr-1"></i> แดชบอร์ด
+                </button>
+                <button onclick="handleLogout()" class="px-4 py-2 rounded-lg font-medium text-red-500 border border-red-500 hover:bg-red-50 transition-colors">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div class="container mx-auto px-4 pb-12 flex-1">
+            
+            <!-- FORM SECTION -->
+            <div id="form-section" class="glass rounded-2xl p-6 md:p-8 animate-fade-in">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3 border-gray-200">
+                    <i class="fa-solid fa-file-signature text-rose-500 mr-2"></i> บันทึกข้อมูลคะแนน/การประเมิน
+                </h2>
+                
+                <form id="data-form" onsubmit="saveData(event)">
+                    <input type="hidden" id="edit-id" value="">
+                    
+                    <!-- ข้อมูลทั่วไป -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-white/50 p-4 rounded-xl">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">รหัสนักศึกษา <span class="text-red-500">*</span></label>
+                            <input type="text" id="student_id" class="input-style" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">ชื่อ-สกุล <span class="text-red-500">*</span></label>
+                            <input type="text" id="fullname" class="input-style" required>
+                        </div>
+                    </div>
+
+                    <h3 class="font-bold text-lg mb-4 text-gray-700">รายวิชา / หัวข้อประเมิน (คะแนน 0-100)</h3>
+                    
+                    <!-- วิชา -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate" title="การผดุงครรภ์การพยาบาลมารดาและทารก">การผดุงครรภ์ฯ มารดาและทารก</label>
+                            <input type="number" id="sub1" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate">การพยาบาลเด็กและวัยรุ่น</label>
+                            <input type="number" id="sub2" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate" title="กฎหมายว่าด้วยวิชาชีพการพยาบาลและการผดุงครรภ์">กฎหมายวิชาชีพการพยาบาลฯ</label>
+                            <input type="number" id="sub3" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate">จรรยาบรรณวิชาชีพ</label>
+                            <input type="number" id="sub4" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate">กฎหมายอื่นที่เกี่ยวข้องฯ</label>
+                            <input type="number" id="sub5" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate">การพยาบาลผู้ใหญ่</label>
+                            <input type="number" id="sub6" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate">การพยาบาลผู้สูงอายุ</label>
+                            <input type="number" id="sub7" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate">การพยาบาลสุขภาพจิตและจิตเวชฯ</label>
+                            <input type="number" id="sub8" class="input-style" min="0" max="100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 truncate" title="การพยาบาลอนามัยชุมชนและการรักษาพยาบาลขั้นต้น">การพยาบาลอนามัยชุมชนฯ</label>
+                            <input type="number" id="sub9" class="input-style" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="clearForm()" class="px-6 py-2 rounded-xl bg-gray-200 text-gray-700 hover:bg-gray-300 font-medium">ล้างข้อมูล</button>
+                        <button type="submit" id="btn-submit" class="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-green-500 text-white font-bold shadow-lg hover:opacity-90">
+                            <i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- DASHBOARD SECTION -->
+            <div id="dashboard-section" class="space-y-6 animate-fade-in">
+                
+                <!-- Chart Container (Fixed Size) -->
+                <div class="glass rounded-2xl p-6">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800 text-center">ภาพรวมคะแนนเฉลี่ยรายวิชา</h2>
+                    <div class="chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="glass rounded-2xl p-6 overflow-hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-table-list text-rose-500 mr-2"></i> ฐานข้อมูลนักศึกษา</h2>
+                        <button onclick="fetchData()" class="text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200">
+                            <i class="fa-solid fa-rotate-right"></i> รีเฟรช
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-700 uppercase bg-white/60">
+                                <tr>
+                                    <th class="px-4 py-3 rounded-tl-lg whitespace-nowrap">รหัสนักศึกษา</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">ชื่อ-สกุล</th>
+                                    <th class="px-4 py-3 whitespace-nowrap" title="การผดุงครรภ์การพยาบาลมารดาและทารก">ผดุงครรภ์ฯ</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">เด็ก/วัยรุ่น</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">กม.วิชาชีพ</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">จรรยาบรรณ</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">กม.อื่นๆ</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">ผู้ใหญ่</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">ผู้สูงอายุ</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">สุขภาพจิต</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">อนามัยชุมชน</th>
+                                    <th class="px-4 py-3 rounded-tr-lg text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <!-- Data will be populated here -->
+                                <tr><td colspan="12" class="text-center py-4 text-gray-500">กำลังโหลดข้อมูล...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // ==========================================
+        // CONFIGURATION
+        // ใส่ URL ที่ได้จากการ Deploy Google Apps Script (Web App) ลงในช่องว่างนี้
+        // ตัวอย่าง: const GAS_URL = "https://script.google.com/macros/s/AKfycby.../exec";
+        // ==========================================
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzJN9qD-wde2CEhRhmR3CmhbaZg015-lZFUMFNEXqOJYH8RGyOHSfU-EPFL_A2Lmt2dkg/exec"; 
+
+        // Local State (Mock DB) in case GAS_URL is empty
+        let localDB = [];
+        let radarChartInstance = null;
+
+        // Fields mapping to match GS Columns
+        const fields = ["student_id", "fullname", "sub1", "sub2", "sub3", "sub4", "sub5", "sub6", "sub7", "sub8", "sub9"];
+        const fieldLabels = [
+            "รหัสนักศึกษา", "ชื่อ-สกุล", 
+            "การผดุงครรภ์การพยาบาลมารดาและทารก", "การพยาบาลเด็กและวัยรุ่น", "กฎหมายว่าด้วยวิชาชีพฯ", 
+            "จรรยาบรรณวิชาชีพ", "กฎหมายอื่นที่เกี่ยวข้องฯ", "การพยาบาลผู้ใหญ่", 
+            "การพยาบาลผู้สูงอายุ", "การพยาบาลสุขภาพจิตฯ", "การพยาบาลอนามัยชุมชนฯ"
+        ];
+
+        // Init App
+        window.onload = () => {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (isLoggedIn === 'true') {
+                showApp();
+            } else {
+                document.getElementById('login-section').style.display = 'flex';
+            }
+        };
+
+        // ================= AUTH LOGIC =================
+        function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            if (user === 'admin' && pass === '1234') {
+                localStorage.setItem('isLoggedIn', 'true');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'เข้าสู่ระบบสำเร็จ',
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    showApp();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ข้อผิดพลาด',
+                    text: 'Username หรือ Password ไม่ถูกต้อง'
+                });
+            }
+        }
+
+        function handleLogout() {
+            Swal.fire({
+                title: 'ยืนยันการออกจากระบบ?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ec4899',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'ออกจากระบบ',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('isLoggedIn');
+                    document.getElementById('app-container').style.display = 'none';
+                    document.getElementById('login-section').style.display = 'flex';
+                    document.getElementById('login-form').reset();
+                }
+            });
+        }
+
+        // ================= UI LOGIC =================
+        function showApp() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            switchTab('form');
+            fetchData();
+        }
+
+        function switchTab(tab) {
+            const formSec = document.getElementById('form-section');
+            const dashSec = document.getElementById('dashboard-section');
+            const btnForm = document.getElementById('tab-form');
+            const btnDash = document.getElementById('tab-dashboard');
+
+            if (tab === 'form') {
+                formSec.style.display = 'block';
+                dashSec.style.display = 'none';
+                btnForm.className = "px-4 py-2 rounded-lg font-medium bg-rose-500 text-white transition-colors shadow-md";
+                btnDash.className = "px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-white/50 transition-colors";
+            } else {
+                formSec.style.display = 'none';
+                dashSec.style.display = 'block';
+                btnDash.className = "px-4 py-2 rounded-lg font-medium bg-rose-500 text-white transition-colors shadow-md";
+                btnForm.className = "px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-white/50 transition-colors";
+                renderChart(); // Re-render to fit container correctly
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('data-form').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('btn-submit').innerHTML = '<i class="fa-solid fa-save mr-1"></i> บันทึกข้อมูล';
+            document.getElementById('student_id').readOnly = false;
+        }
+
+        // ================= CRUD LOGIC =================
+        async function saveData(e) {
+            e.preventDefault();
+            
+            // Build Payload
+            const payload = {};
+            fields.forEach(field => {
+                payload[field] = document.getElementById(field).value || "";
+            });
+
+            const editId = document.getElementById('edit-id').value;
+            const action = editId ? 'update' : 'create';
+            if (editId) payload.rowId = editId;
+
+            Swal.fire({
+                title: 'กำลังบันทึกข้อมูล...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            if (!GAS_URL) {
+                // Mock Saving
+                setTimeout(() => {
+                    if (action === 'create') {
+                        payload.rowId = Date.now().toString();
+                        localDB.push(payload);
+                    } else {
+                        const idx = localDB.findIndex(r => r.rowId === payload.rowId);
+                        if (idx > -1) localDB[idx] = payload;
+                    }
+                    Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อย (Local Mode)', 'success');
+                    clearForm();
+                    fetchData();
+                }, 800);
+                return;
+            }
+
+            // Real Saving to GAS
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', action);
+                formData.append('data', JSON.stringify(payload));
+
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    Swal.fire('สำเร็จ', 'บันทึกข้อมูลลง Google Sheet เรียบร้อย', 'success');
+                    clearForm();
+                    fetchData();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
+            }
+        }
+
+        async function fetchData() {
+            const tbody = document.getElementById('table-body');
+            
+            if (!GAS_URL) {
+                // Mock Fetching
+                renderTable(localDB);
+                updateChartData(localDB);
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-rose-500"></i> กำลังโหลดข้อมูลจาก Google Sheet...</td></tr>';
+            
+            try {
+                const response = await fetch(`${GAS_URL}?action=read`);
+                const result = await response.json();
+                if (result.status === 'success') {
+                    localDB = result.data;
+                    renderTable(localDB);
+                    updateChartData(localDB);
+                }
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-4 text-red-500">โหลดข้อมูลล้มเหลว กรุณาตรวจสอบ URL ของ GAS</td></tr>`;
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4 text-gray-500">ยังไม่มีข้อมูล</td></tr>';
+                return;
+            }
+
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-white/50 transition-colors";
+                
+                let tds = `<td class="px-4 py-2 font-medium">${row.student_id}</td>`;
+                tds += `<td class="px-4 py-2">${row.fullname}</td>`;
+                
+                // Add score columns
+                for(let i=1; i<=9; i++) {
+                    const score = row[`sub${i}`] || '-';
+                    tds += `<td class="px-4 py-2 text-center">${score}</td>`;
+                }
+
+                tds += `
+                    <td class="px-4 py-2 text-center">
+                        <button onclick='editRecord(${JSON.stringify(row)})' class="text-blue-500 hover:text-blue-700 mx-1" title="แก้ไข">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteRecord('${row.rowId}')" class="text-red-500 hover:text-red-700 mx-1" title="ลบ">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tr.innerHTML = tds;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editRecord(row) {
+            switchTab('form');
+            document.getElementById('edit-id').value = row.rowId;
+            document.getElementById('btn-submit').innerHTML = '<i class="fa-solid fa-save mr-1"></i> อัปเดตข้อมูล';
+            document.getElementById('student_id').readOnly = true; // Protect ID
+            
+            fields.forEach(field => {
+                if(document.getElementById(field)) {
+                    document.getElementById(field).value = row[field] || '';
+                }
+            });
+        }
+
+        function deleteRecord(rowId) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ข้อมูลนี้จะถูกลบอย่างถาวร!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'ใช่, ลบเลย!',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    
+                    Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+                    if (!GAS_URL) {
+                        localDB = localDB.filter(r => r.rowId !== rowId);
+                        setTimeout(() => {
+                            Swal.fire('ลบแล้ว!', 'ข้อมูลถูกลบเรียบร้อย', 'success');
+                            fetchData();
+                        }, 500);
+                        return;
+                    }
+
+                    // Real Delete API
+                    try {
+                        const formData = new URLSearchParams();
+                        formData.append('action', 'delete');
+                        formData.append('rowId', rowId);
+
+                        const response = await fetch(GAS_URL, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const resJSON = await response.json();
+                        if(resJSON.status === 'success') {
+                            Swal.fire('ลบแล้ว!', 'ข้อมูลถูกลบเรียบร้อย', 'success');
+                            fetchData();
+                        }
+                    } catch (error) {
+                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
+                    }
+                }
+            });
+        }
+
+        // ================= CHART LOGIC =================
+        function updateChartData(data) {
+            if(data.length === 0) return;
+
+            // Calculate averages
+            let sums = [0,0,0,0,0,0,0,0,0];
+            let counts = [0,0,0,0,0,0,0,0,0];
+
+            data.forEach(row => {
+                for(let i=1; i<=9; i++) {
+                    const val = parseFloat(row[`sub${i}`]);
+                    if(!isNaN(val)) {
+                        sums[i-1] += val;
+                        counts[i-1]++;
+                    }
+                }
+            });
+
+            const averages = sums.map((sum, idx) => counts[idx] > 0 ? (sum/counts[idx]).toFixed(2) : 0);
+            
+            // Labels for Radar Chart
+            const chartLabels = [
+                "มารดาและทารก", "เด็กและวัยรุ่น", "กม.วิชาชีพฯ", 
+                "จรรยาบรรณ", "กม.อื่นๆ", "ผู้ใหญ่", 
+                "ผู้สูงอายุ", "สุขภาพจิตฯ", "อนามัยชุมชน"
+            ];
+
+            if(radarChartInstance) {
+                radarChartInstance.data.datasets[0].data = averages;
+                radarChartInstance.update();
+            } else {
+                initChart(chartLabels, averages);
+            }
+        }
+
+        function initChart(labels, data) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            // Set default font to Prompt
+            Chart.defaults.font.family = "'Prompt', sans-serif";
+            
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'คะแนนเฉลี่ยรวม',
+                        data: data,
+                        backgroundColor: 'rgba(236, 72, 153, 0.2)', // Pink transparent
+                        borderColor: 'rgba(236, 72, 153, 1)',
+                        pointBackgroundColor: 'rgba(225, 29, 72, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(225, 29, 72, 1)',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Important for fixed container
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                            pointLabels: {
+                                font: { size: 11, family: "'Prompt', sans-serif" },
+                                color: '#4b5563'
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                max: 100,
+                                stepSize: 20,
+                                backdropColor: 'transparent'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function renderChart() {
+            // Helper to resize chart properly when unhiding the dashboard tab
+            if(radarChartInstance) {
+                radarChartInstance.resize();
+            }
+        }
+
+    </script>
+</body>
+</html>

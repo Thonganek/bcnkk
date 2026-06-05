@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>หน้าแรก — BCNKK</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #edf4fb;
+            --surface: #ffffff;
+            --surface-soft: #f6f9fd;
+            --line: #d6e1ee;
+            --line-strong: #9fb3ce;
+            --text: #14233b;
+            --muted: #627086;
+            --primary: #0b62b5;
+            --primary-dark: #072f64;
+            --primary-soft: #e2efff;
+            --accent: #f3b72b;
+            --accent-soft: #fff1c8;
+            --gold: #c68600;
+            --gold-soft: #ffe5a3;
+            --rose: #18a8c9;
+            --rose-soft: #ddf6fb;
+            --shadow: 0 18px 48px rgba(7, 47, 100, 0.16);
+            --radius: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Kanit', sans-serif; }
+
+        body {
+            min-height: 100vh;
+            padding: 18px 30px 34px;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% 0%, rgba(243, 183, 43, 0.23), transparent 34%),
+                radial-gradient(circle at 92% 2%, rgba(24, 168, 201, 0.2), transparent 34%),
+                linear-gradient(135deg, #f4f8fc 0%, #eef5fb 48%, #e8f3f8 100%),
+                var(--bg);
+        }
+
+        /* Overview panel */
+        .overview-panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 160px);
+            gap: 20px;
+            align-items: stretch;
+            padding: 22px;
+            margin-bottom: 22px;
+            border: 1px solid rgba(255,255,255,0.56);
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, rgba(7,47,100,0.98) 0%, rgba(11,98,181,0.96) 54%, rgba(24,168,201,0.9) 100%), var(--primary-dark);
+            color: #fff;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: visible;
+            isolation: isolate;
+        }
+        .overview-panel::before {
+            content: "";
+            position: absolute; inset: 0; z-index: 0;
+            background: radial-gradient(circle at 84% 18%, rgba(24,168,201,0.42), transparent 30%),
+                        radial-gradient(circle at 10% 86%, rgba(243,183,43,0.22), transparent 26%),
+                        linear-gradient(135deg, rgba(255,255,255,0.08), transparent 55%);
+            pointer-events: none;
+            border-radius: var(--radius);
+        }
+        .overview-panel::after {
+            content: "";
+            position: absolute; right: 26px; bottom: 24px;
+            width: 150px; height: 150px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%; opacity: 0.7; z-index: 0; pointer-events: none;
+        }
+        .overview-copy {
+            display: flex; flex-direction: column; justify-content: center;
+            min-width: 0; position: relative; z-index: 1;
+        }
+        .overview-copy .eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
+            width: fit-content; margin-bottom: 12px; padding: 5px 10px;
+            border: 1px solid rgba(255,255,255,0.38); border-radius: 999px;
+            background: rgba(255,255,255,0.13); color: #fff4cf; font-size: 0.84rem;
+        }
+        .overview-copy h2 {
+            font-size: clamp(1.75rem, 3.2vw, 3rem); line-height: 1.22;
+            font-weight: 600; overflow-wrap: anywhere;
+        }
+        .overview-copy p {
+            margin-top: 14px; color: rgba(255,255,255,0.9);
+            font-size: 1.05rem; line-height: 1.8;
+        }
+        .vision-label {
+            display: inline-flex; align-items: center; gap: 8px;
+            width: fit-content; margin-top: 18px; padding: 6px 12px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #f3b72b, #ffd975);
+            color: #14233b; font-size: 0.88rem; font-weight: 500;
+        }
+        .overview-stamp {
+            display: grid; gap: 12px; align-content: start;
+            position: relative; z-index: 3; padding-top: 4px;
+        }
+        .stamp-card {
+            padding: 7px 11px;
+            border: 1px solid rgba(255,255,255,0.28); border-radius: var(--radius);
+            background: rgba(255,255,255,0.12); box-shadow: 0 8px 20px rgba(3,23,55,0.15);
+            position: relative; z-index: 4;
+        }
+        .stamp-card > span {
+            display: block; color: rgba(255,255,255,0.65);
+            font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .stamp-card strong {
+            display: block; margin-top: 2px; color: #fff;
+            font-size: 1.15rem; font-weight: 700; line-height: 1;
+        }
+        .stamp-card small { display: block; margin-top: 4px; color: rgba(255,255,255,0.78); font-size: 0.68rem; line-height: 1.3; }
+        .year-picker { position: relative; margin-top: 2px; z-index: 5; }
+        .year-display {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 6px; cursor: pointer; user-select: none;
+        }
+        .year-display strong { color: #fff; font-size: 1.15rem; font-weight: 700; line-height: 1; }
+        .year-display .year-chevron {
+            width: 22px; height: 22px; display: grid; place-items: center;
+            border-radius: 5px; background: rgba(255,255,255,0.18);
+            color: rgba(255,255,255,0.9); font-size: 0.65rem;
+            transition: background 0.2s, transform 0.25s; flex-shrink: 0;
+        }
+        .year-picker.open .year-chevron { background: rgba(255,255,255,0.3); transform: rotate(180deg); }
+        .year-dropdown {
+            position: absolute; top: calc(100% + 8px); right: 0; min-width: 120px;
+            background: #fff; border-radius: var(--radius);
+            box-shadow: 0 16px 40px rgba(7,47,100,0.22);
+            overflow: hidden; z-index: 50; opacity: 0; transform: translateY(-6px);
+            pointer-events: none; transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        .year-picker.open .year-dropdown { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .year-option {
+            display: block; width: 100%; padding: 10px 18px; text-align: left;
+            background: none; border: none; font-family: 'Kanit', sans-serif;
+            font-size: 1rem; font-weight: 500; color: var(--text); cursor: pointer;
+            transition: background 0.15s;
+        }
+        .year-option:hover { background: var(--primary-soft); color: var(--primary-dark); }
+        .year-option.selected { background: var(--primary); color: #fff; }
+
+        /* Panel */
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: 0 10px 28px rgba(185,137,32,0.08); overflow: hidden; }
+        .panel-header {
+            min-height: 60px; display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line);
+            background: linear-gradient(135deg, #fff8e7 0%, #f6f9fd 46%, #eef7fb 100%);
+        }
+        .panel-header h3 { color: var(--text); font-size: 1.02rem; font-weight: 600; }
+        .panel-header span { color: var(--muted); font-size: 0.84rem; white-space: nowrap; }
+        .panel-body { padding: 18px; }
+
+        /* Dashboard */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+        .dashboard-card {
+            min-height: 260px; display: flex; flex-direction: column; gap: 10px;
+            padding: 18px; border: 1px solid rgba(214,225,238,0.7); border-radius: 12px;
+            background: #fff; box-shadow: 0 2px 8px rgba(7,47,100,0.05);
+            transition: box-shadow 0.22s, transform 0.22s; position: relative; overflow: hidden;
+        }
+        .dashboard-card::after {
+            content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--rose)); border-radius: 12px 12px 0 0;
+        }
+        .dashboard-card:hover { box-shadow: 0 10px 36px rgba(7,47,100,0.12); transform: translateY(-2px); }
+        .dashboard-card.wide { grid-column: span 2; }
+        .dashboard-card.full { grid-column: span 4; }
+        .dashboard-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .dashboard-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .dashboard-icon {
+            width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto;
+            border-radius: 9px; color: #fff;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            box-shadow: 0 6px 16px rgba(7,47,100,0.18); font-size: 0.95rem;
+        }
+        .dashboard-title h4 { color: var(--text); font-size: 0.96rem; font-weight: 600; line-height: 1.3; }
+        .dashboard-title span, .dashboard-card > p { color: var(--muted); font-size: 0.79rem; line-height: 1.5; }
+        .dashboard-badge {
+            flex: 0 0 auto; padding: 3px 9px; border-radius: 999px;
+            color: var(--primary); background: var(--primary-soft);
+            font-size: 0.74rem; font-weight: 500; white-space: nowrap;
+        }
+        .card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+        .detail-link {
+            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 999px; color: var(--primary);
+            background: var(--primary-soft); border: 1px solid rgba(11,98,181,0.12);
+            font-size: 0.74rem; font-weight: 500; text-decoration: none;
+            transition: background 0.18s, color 0.18s, transform 0.18s;
+        }
+        .detail-link:hover { background: var(--primary); color: #fff; transform: translateY(-1px); }
+        .dc-stats { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 2px; }
+        .dc-stat { display: flex; flex-direction: column; gap: 1px; }
+        .dc-stat-value { font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); line-height: 1; }
+        .dc-stat-label { font-size: 0.73rem; color: var(--muted); }
+        .dc-stat-value.green { color: #0d7a4e; }
+        .dc-stat-value.amber { color: #b45309; }
+
+        .module-list {
+            display: grid; gap: 8px; margin-top: auto;
+            border: 1px solid var(--line); border-radius: var(--radius);
+            background: linear-gradient(160deg, #f8faff 0%, #fff 100%);
+            padding: 10px;
+        }
+        .module-link {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            min-height: 38px; padding: 9px 10px; border-radius: 8px;
+            color: var(--text); text-decoration: none; background: #fff;
+            border: 1px solid rgba(214,225,238,0.72);
+            font-size: 0.82rem; font-weight: 500;
+            transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+        }
+        .module-link:hover { border-color: rgba(11,98,181,0.35); box-shadow: 0 6px 18px rgba(7,47,100,0.08); transform: translateY(-1px); }
+        .module-link.disabled {
+            color: var(--muted); background: rgba(244,247,251,0.72);
+            border-style: dashed; box-shadow: none; transform: none;
+        }
+        .module-link i { color: var(--primary); }
+        .module-link.disabled i { color: #a6b5c8; }
+        .module-meta { color: var(--muted); font-size: 0.74rem; font-weight: 400; white-space: nowrap; }
+
+        .mini-chart {
+            height: 150px; min-height: 150px; margin-top: auto;
+            border: 1px solid var(--line); border-radius: var(--radius);
+            background: linear-gradient(160deg, #f8faff 0%, #fff 100%);
+            padding: 12px; position: relative; overflow: hidden;
+        }
+        .mini-chart.compact { height: 126px; min-height: 126px; }
+        .mini-chart canvas { width: 100% !important; height: 100% !important; display: block; }
+
+        /* Charts */
+        .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 2px; }
+        .chart-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.78rem; }
+        .chart-legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); }
+        .chart-legend span:nth-child(2) i { background: var(--accent); }
+        .chart-legend span:nth-child(3) i { background: var(--rose); }
+
+        .combo-chart, .line-chart, .bar-chart, .horizontal-chart, .donut-panel, .status-chart {
+            height: 176px; min-height: 176px; margin-top: auto;
+            border: 1px solid var(--line); border-radius: var(--radius);
+            background: linear-gradient(160deg, #f8faff 0%, #ffffff 100%);
+            padding: 14px; position: relative; overflow: hidden;
+        }
+        .line-chart, .bar-chart { padding: 10px 14px 8px 36px; }
+        .line-chart svg, .bar-chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+        .horizontal-chart { display: grid; align-content: center; gap: 12px; }
+        .hbar-row { display: grid; grid-template-columns: minmax(86px,102px) minmax(0,1fr) 36px; gap: 10px; align-items: center; }
+        .hbar-row span { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+        .hbar-row .hbar-pct { color: var(--primary-dark); font-size: 0.76rem; font-weight: 600; text-align: right; }
+        .hbar-track { height: 10px; overflow: hidden; border-radius: 999px; background: #e4ecf6; }
+        .hbar-track::before {
+            content: ""; display: block; width: var(--value, 60%); height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary), var(--rose));
+        }
+
+        .donut-panel { display: grid; grid-template-columns: 118px minmax(0,1fr); align-items: center; gap: 14px; }
+        .donut-chart {
+            width: 118px; height: 118px; border-radius: 50%;
+            background: conic-gradient(var(--primary) 0deg 158deg, var(--accent) 158deg 259deg, var(--rose) 259deg 324deg, #dde6f2 324deg 360deg);
+            position: relative; box-shadow: 0 8px 24px rgba(7,47,100,0.12);
+        }
+        .donut-chart::after {
+            content: ""; position: absolute; inset: 24px; border-radius: 50%;
+            background: #fff; box-shadow: 0 2px 8px rgba(7,47,100,0.08); z-index: 0;
+        }
+
+        .status-chart { display: grid; align-content: center; gap: 14px; }
+        .status-stack { height: 32px; display: flex; overflow: hidden; border-radius: 6px; background: #e4ecf6; gap: 2px; }
+        .status-stack span:nth-child(1) { width: 54%; background: linear-gradient(90deg, var(--primary-dark), var(--primary)); border-radius: 6px 0 0 6px; }
+        .status-stack span:nth-child(2) { width: 28%; background: var(--accent); }
+        .status-stack span:nth-child(3) { width: 18%; background: var(--rose); border-radius: 0 6px 6px 0; }
+
+        .chart-grid { stroke: #e0e9f4; stroke-width: 1; stroke-dasharray: 4 3; }
+        .chart-axis { stroke: #b8c8de; stroke-width: 1.5; }
+        .chart-area { fill: url(#areaGrad); opacity: 0.18; }
+        .chart-area.secondary { fill: url(#areaGradSecondary); opacity: 0.12; }
+        .chart-line { fill: none; stroke: var(--primary); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+        .chart-line.secondary { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 5 3; }
+        .chart-point { fill: #fff; stroke: var(--primary); stroke-width: 2.5; filter: drop-shadow(0 2px 4px rgba(11,98,181,0.3)); }
+        .chart-point.secondary { stroke: var(--accent); filter: drop-shadow(0 2px 4px rgba(243,183,43,0.3)); }
+        .chart-label { fill: var(--muted); font-size: 9.5px; font-family: 'Kanit', sans-serif; text-anchor: middle; }
+
+        @media (max-width: 1180px) {
+            .dashboard-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+            .dashboard-card.full { grid-column: span 2; }
+        }
+        @media (max-width: 620px) {
+            body { padding: 14px 14px 24px; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .dashboard-card.wide, .dashboard-card.full { grid-column: auto; }
+            .overview-panel { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <section class="overview-panel" aria-labelledby="overview-title">
+        <div class="overview-copy">
+            <div class="eyebrow"><i class="fa-solid fa-star"></i> Boromarajonani College of Nursing, Khon Kaen</div>
+            <h2 id="overview-title">วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น</h2>
+            <div class="vision-label"><i class="fa-solid fa-lightbulb"></i> วิสัยทัศน์</div>
+            <p>"เป็นวิทยาลัยชั้นนำระดับสากลในการผลิตพยาบาล และเป็นองค์กรแห่งการเรียนรู้ และนวัตกรรมการดูแลสุขภาพปฐมภูมิอย่างยั่งยืน"</p>
+        </div>
+        <div class="overview-stamp" aria-label="สถานะระบบโดยรวม">
+            <div class="stamp-card">
+                <span>ปีงบประมาณ</span>
+                <div class="year-picker" id="yearPicker">
+                    <div class="year-display" id="yearDisplay" role="button" tabindex="0" aria-haspopup="listbox" aria-label="เลือกปีงบประมาณ">
+                        <strong id="yearValue">2569</strong>
+                        <span class="year-chevron"><i class="fa-solid fa-chevron-down"></i></span>
+                    </div>
+                    <div class="year-dropdown" role="listbox" id="yearDropdown">
+                        <button class="year-option selected" data-year="2569">2569</button>
+                        <button class="year-option" data-year="2568">2568</button>
+                        <button class="year-option" data-year="2567">2567</button>
+                        <button class="year-option" data-year="2566">2566</button>
+                        <button class="year-option" data-year="2565">2565</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content-grid">
+        <article class="panel">
+            <div class="panel-header">
+                <h3><i class="fa-solid fa-chart-simple"></i> Dashboard สรุปภาพรวมรายด้าน</h3>
+                <span>เชื่อมตรงกับเมนูที่มีหน้าระบบแล้ว</span>
+            </div>
+            <div class="panel-body">
+                <div class="dashboard-grid">
+
+                    <article class="dashboard-card full">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                                <div>
+                                    <h4>ด้านการบริหาร — การเงินและงบประมาณ</h4>
+                                    <span>สรุปงบประมาณจัดสรรและการเบิกจ่ายรายพันธกิจ</span>
+                                </div>
+                            </div>
+                            <div class="card-actions">
+                                <a href="work/01_administration/overview/saraban-dashboard.html" target="mainFrame" class="detail-link">สารบรรณ <i class="fa-solid fa-arrow-right"></i></a>
+                                <a href="work/01_administration/finance-budget/finance-budget.html" target="mainFrame" class="detail-link">งบประมาณ <i class="fa-solid fa-arrow-right"></i></a>
+                                <a href="work/01_administration/kpi/budget-kpi-dashboard.html" target="mainFrame" class="detail-link">KPI <i class="fa-solid fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+
+                        <!-- Summary stats (ดึงจากข้อมูลจริง) -->
+                        <div class="dc-stats" id="budgetStats">
+                            <div class="dc-stat"><span class="dc-stat-value" id="statProjects">—</span><span class="dc-stat-label">โครงการทั้งหมด</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value" id="statAllocated">—</span><span class="dc-stat-label">งบจัดสรร (บาท)</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value amber" id="statSpent">—</span><span class="dc-stat-label">เบิกจ่ายแล้ว (บาท)</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value green" id="statPct">—</span><span class="dc-stat-label">% การเบิกจ่าย</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value" id="statRemaining">—</span><span class="dc-stat-label">คงเหลือ (บาท)</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value" id="statDocs">—</span><span class="dc-stat-label">สารบรรณทั้งหมด</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value green" id="statKpiSuccess">—</span><span class="dc-stat-label">KPI สำเร็จ</span></div>
+                        </div>
+
+                        <!-- Chart.js bar chart แยกตามพันธกิจ -->
+                        <div style="position:relative;height:220px;margin-top:auto;border:1px solid var(--line);border-radius:var(--radius);background:#f8faff;padding:12px;">
+                            <canvas id="budgetMissionChart"></canvas>
+                            <div id="budgetLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.85rem;gap:8px;">
+                                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...
+                            </div>
+                        </div>
+
+                        <div class="chart-legend">
+                            <span><i></i>งบจัดสรร</span>
+                            <span><i></i>เบิกจ่ายแล้ว</span>
+                        </div>
+                        <div class="mini-chart compact"><canvas id="adminOpsChart"></canvas></div>
+                    </article>
+
+                    <article class="dashboard-card wide">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+                                <div><h4>สิ่งสนับสนุนการเรียนรู้</h4><span>เมนูศูนย์ปฏิบัติการพยาบาลและห้องสมุด</span></div>
+                            </div>
+                            <span class="dashboard-badge">2 ระบบ</span>
+                        </div>
+                        <div class="dc-stats">
+                            <div class="dc-stat"><span class="dc-stat-value green" id="statLearningUsers">—</span><span class="dc-stat-label">ผู้ใช้ห้อง Lab</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value" id="statLibraryRequests">—</span><span class="dc-stat-label">คำขอยืมหนังสือ</span></div>
+                        </div>
+                        <div class="mini-chart"><canvas id="learningSupportChart"></canvas></div>
+                        <div class="module-list">
+                            <a class="module-link" href="work/02_learning-support/nursing-lab/nursing-lab-dashboard.html" target="mainFrame">
+                                Dashboard ศูนย์ปฏิบัติการพยาบาล <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <a class="module-link" href="work/02_learning-support/nursing-lab/nursing-lab-equipment-loan.html" target="mainFrame">
+                                ระบบยืม-คืนอุปกรณ์ ครุภัณฑ์ห้องปฏิบัติการพยาบาล <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <a class="module-link" href="work/02_learning-support/library/library-book-loan-form.html" target="mainFrame">
+                                แบบฟอร์มขอยืมหนังสือตำราฯ <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-card wide">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-users"></i></div>
+                                <div><h4>ด้านงานบุคคล</h4><span>เมนูข้อมูลบุคลากรและอัตราการคงอยู่</span></div>
+                            </div>
+                            <span class="dashboard-badge">1 ระบบ</span>
+                        </div>
+                        <div class="dc-stats">
+                            <div class="dc-stat"><span class="dc-stat-value green" id="statPersonnelTotal">—</span><span class="dc-stat-label">บุคลากรทั้งหมด</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value amber" id="statPersonnelAvgAge">—</span><span class="dc-stat-label">อายุเฉลี่ย</span></div>
+                        </div>
+                        <div class="mini-chart"><canvas id="personnelChart"></canvas></div>
+                        <div class="module-list">
+                            <a class="module-link" href="work/03_personnel/retention-rate/support-staff-analytics.html" target="mainFrame">
+                                อัตราการคงอยู่ สายสนับสนุน <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <span class="module-link disabled">สมรรถนะ / พัฒนา / Faculty Practice <span class="module-meta">รอเชื่อมหน้า</span></span>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-card wide">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-book-open"></i></div>
+                                <div><h4>ด้านการเรียนการสอน</h4><span>เมนูผลลัพธ์หลักสูตรและผลสอบ</span></div>
+                            </div>
+                            <span class="dashboard-badge">Academic</span>
+                        </div>
+                        <div class="dc-stats">
+                            <div class="dc-stat"><span class="dc-stat-value green" id="statEnglishTotal">—</span><span class="dc-stat-label">ผู้เข้าสอบทั้งหมด</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value" id="statEnglishPassRate">—</span><span class="dc-stat-label">ผ่านเกณฑ์</span></div>
+                        </div>
+                        <div class="mini-chart"><canvas id="academicChart"></canvas></div>
+                        <div class="module-list">
+                            <a class="module-link" href="work/05_academic/curriculum-outcomes/english-proficiency-exam-dashboard.html" target="mainFrame">
+                                ระบบรายงานผลสอบวัดความรู้ภาษาอังกฤษ <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <a class="module-link" href="work/05_academic/comprehensive-exam/comprehensive-exam-dashboard.html" target="mainFrame">
+                                Dashboard สอบรวบยอด <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <a class="module-link" href="work/05_academic/quality-assurance/aun-qa-assessment-dashboard.html" target="mainFrame">
+                                AUN-QA : ผลประเมิน <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <span class="module-link disabled">PLO / ตารางสอน / ศิษย์เก่า <span class="module-meta">รอเชื่อมหน้า</span></span>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-card wide">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-microscope"></i></div>
+                                <div><h4>ด้านการวิจัย</h4><span>Dashboard รวมทุน ผลงาน ตีพิมพ์ Citation และ H-Index</span></div>
+                            </div>
+                            <span class="dashboard-badge">Research</span>
+                        </div>
+                        <div class="dc-stats">
+                            <div class="dc-stat"><span class="dc-stat-value green" id="statResearchProjects">—</span><span class="dc-stat-label">โครงการ/ผลงาน</span></div>
+                            <div class="dc-stat"><span class="dc-stat-value" id="statResearchFunding">—</span><span class="dc-stat-label">ทุนวิจัยรวม</span></div>
+                        </div>
+                        <div class="mini-chart"><canvas id="researchChart"></canvas></div>
+                        <div class="module-list">
+                            <a class="module-link" href="work/06_research/overview/research-dashboard.html" target="mainFrame">
+                                BCNNKK Research Dashboard <span class="module-meta">เปิด <i class="fa-solid fa-arrow-right"></i></span>
+                            </a>
+                            <span class="module-link disabled">แผนงาน / ทุน / ผลงาน / H-Index ใช้หน้า Dashboard เดียวกัน</span>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                                <div><h4>ด้านครุภัณฑ์</h4><span>เมนูสินทรัพย์ วัสดุ และครุภัณฑ์</span></div>
+                            </div>
+                        </div>
+                        <div class="dc-stats"><div class="dc-stat"><span class="dc-stat-value amber">0</span><span class="dc-stat-label">หน้าที่เชื่อมแล้ว</span></div></div>
+                        <div class="mini-chart compact"><canvas id="assetsChart"></canvas></div>
+                        <div class="module-list">
+                            <span class="module-link disabled">ครุภัณฑ์ / แยกสินทรัพย์ / วัสดุ <span class="module-meta">รอเชื่อมหน้า</span></span>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-card wide">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-hand-holding-heart"></i></div>
+                                <div><h4>ด้านบริการวิชาการ</h4><span>เมนูแผนงาน โครงการบริการวิชาการ และ Faculty Practice</span></div>
+                            </div>
+                        </div>
+                        <div class="dc-stats"><div class="dc-stat"><span class="dc-stat-value amber">0</span><span class="dc-stat-label">หน้าที่เชื่อมแล้ว</span></div></div>
+                        <div class="mini-chart"><canvas id="academicServiceChart"></canvas></div>
+                        <div class="module-list">
+                            <span class="module-link disabled">แผนงานโครงการและการใช้งบประมาณ <span class="module-meta">รอเชื่อมหน้า</span></span>
+                            <span class="module-link disabled">โครงการบริการวิชาการ / จำนวนชั่วโมง Faculty Practice <span class="module-meta">รอเชื่อมหน้า</span></span>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <div class="dashboard-title">
+                                <div class="dashboard-icon"><i class="fa-solid fa-landmark"></i></div>
+                                <div><h4>ศิลปะและวัฒนธรรม</h4><span>เมนูกิจกรรมและนวัตกรรมภูมิปัญญาไทย</span></div>
+                            </div>
+                        </div>
+                        <div class="dc-stats"><div class="dc-stat"><span class="dc-stat-value amber">0</span><span class="dc-stat-label">หน้าที่เชื่อมแล้ว</span></div></div>
+                        <div class="mini-chart compact"><canvas id="cultureChart"></canvas></div>
+                        <div class="module-list">
+                            <span class="module-link disabled">กิจกรรมทำนุบำรุงศิลปวัฒนธรรม <span class="module-meta">รอเชื่อมหน้า</span></span>
+                            <span class="module-link disabled">นวัตกรรมภูมิปัญญาไทย <span class="module-meta">รอเชื่อมหน้า</span></span>
+                        </div>
+                    </article>
+
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <script>
+        const yearPicker = document.getElementById('yearPicker');
+        const yearDisplay = document.getElementById('yearDisplay');
+        const yearValue = document.getElementById('yearValue');
+        const yearOptions = document.querySelectorAll('.year-option');
+
+        yearDisplay.addEventListener('click', () => yearPicker.classList.toggle('open'));
+        yearDisplay.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); yearPicker.classList.toggle('open'); }
+        });
+        yearOptions.forEach(btn => {
+            btn.addEventListener('click', function() {
+                yearOptions.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                yearValue.textContent = this.dataset.year;
+                yearPicker.classList.remove('open');
+            });
+        });
+        document.addEventListener('click', e => {
+            if (!yearPicker.contains(e.target)) yearPicker.classList.remove('open');
+        });
+
+        // ดึงข้อมูลงบประมาณจาก Google Apps Script
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwATl0cQlRA2DLfbHTmCzN0e_IY-lPtO5jRGPvH3xUW8MUc924a2A6UeX32eAMVxrqp/exec';
+        const EXEC_SOURCES = {
+            saraban: 'https://script.google.com/macros/s/AKfycbxOwiPDtBSJHZKtRuxy492haS6iSvU0_o7rtEb4RC_rB-O4lZmHe43bIJGdcz-DbFqc/exec?action=read',
+            kpi: 'https://script.google.com/macros/s/AKfycbwNvn3S8XgYxYTfIhTGYJpt4PiIiGCaPZxt5v0fvcDzqya48dMreuyYUQRcVjgPSaxpvg/exec',
+            nursing: 'https://script.google.com/macros/s/AKfycbyrnq5mKHNCS7KDyRRNBa-Krin2jy9tKmfNTUCIr0Jwo_BdSA2O_qsZ-CGs-DIZWZwSAQ/exec?action=getData',
+            library: 'https://script.google.com/macros/s/AKfycbxEWm2JF3S9TW3FheZNeO1Gpby-q6QwWhoY76hiXU2ytUBJy2SYstl-1ZSS5b0GaaMh/exec',
+            personnel: 'https://script.google.com/macros/s/AKfycbyNHXQP0kGFvGzXofJU9GKrDjxFr2VARVh5bczCL9Yzcvphfslc89QwljgKBIXahN8k/exec',
+            english: 'https://script.google.com/macros/s/AKfycbxEOVjPkK6mIKC4UR9ypcHrZmJ1w_73049jJsAfWjkwXiFVhZURytmBkeJjJdeN29GQ/exec',
+            research: 'https://script.google.com/macros/s/AKfycbzxQ0PGs6OrODHy7-NZqAbC7gtU43CYMu2xnDxUXoEZoqQPnPet56kJQcNduEWwEiZY/exec?action=getData'
+        };
+        const MISSIONS = ['ผลิตบัณฑิต','วิจัย','บริหาร','บริการวิชาการ','ทำนุบำรุงศิลปวัฒนธรรม'];
+        const CHART_PALETTE = [
+            'rgba(11,98,181,0.76)',
+            'rgba(24,168,201,0.76)',
+            'rgba(13,122,78,0.78)',
+            'rgba(243,183,43,0.78)',
+            'rgba(220,88,74,0.74)',
+            'rgba(103,88,178,0.70)'
+        ];
+        const EXEC_TOTAL_SOURCES = Object.keys(EXEC_SOURCES).length + 1;
+        const execLoadedSources = new Set();
+        const homeCharts = {};
+        let budgetChart = null;
+
+        function asNumber(value) {
+            const cleaned = String(value ?? '').replace(/,/g, '').replace(/[^\d.-]/g, '');
+            const number = Number(cleaned);
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function fmt(v) {
+            return asNumber(v).toLocaleString('th-TH', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        }
+
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+
+        function percent(part, total) {
+            return total > 0 ? Math.round((part / total) * 100) : 0;
+        }
+
+        function briefMoney(value) {
+            const amount = asNumber(value);
+            if (amount >= 1000000) {
+                return (amount / 1000000).toLocaleString('th-TH', { maximumFractionDigits: 1 }) + ' ลบ.';
+            }
+            return fmt(amount);
+        }
+
+        function updateExecStatus(message) {
+            setText('execSourceCount', execLoadedSources.size + '/' + EXEC_TOTAL_SOURCES);
+            setText('execDataStatus', message);
+        }
+
+        function markExecSource(key) {
+            execLoadedSources.add(key);
+            if (execLoadedSources.size === EXEC_TOTAL_SOURCES) {
+                updateExecStatus('ข้อมูลสดครบทุกระบบที่เชื่อมไว้');
+            } else {
+                updateExecStatus('สรุปข้อมูลสด ' + execLoadedSources.size + '/' + EXEC_TOTAL_SOURCES + ' แหล่ง');
+            }
+        }
+
+        function finishExecStatus() {
+            if (execLoadedSources.size === EXEC_TOTAL_SOURCES) {
+                updateExecStatus('ข้อมูลสดครบทุกระบบที่เชื่อมไว้');
+            } else if (execLoadedSources.size > 0) {
+                updateExecStatus('โหลดได้ ' + execLoadedSources.size + '/' + EXEC_TOTAL_SOURCES + ' แหล่ง บางระบบยังไม่ตอบกลับ');
+            } else {
+                updateExecStatus('ยังดึงข้อมูลสดไม่ได้');
+            }
+        }
+
+        function renderBudgetChart(projects) {
+            const allocated = MISSIONS.map(m => projects.filter(p => p.mission === m).reduce((s,p) => s + (+p.allocated||0), 0));
+            const spent     = MISSIONS.map(m => projects.filter(p => p.mission === m).reduce((s,p) => s + (+p.spent||0), 0));
+
+            const loading = document.getElementById('budgetLoading');
+            if (loading) loading.style.display = 'none';
+
+            if (typeof Chart === 'undefined') {
+                if (loading) {
+                    loading.style.display = 'flex';
+                    loading.innerHTML = '<span style="font-size:0.82rem;color:var(--muted)">ไม่สามารถโหลด Chart.js ได้</span>';
+                }
+                return;
+            }
+
+            const ctx = document.getElementById('budgetMissionChart').getContext('2d');
+            if (budgetChart) budgetChart.destroy();
+            budgetChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['ผลิตบัณฑิต','วิจัย','บริหาร','บริการวิชาการ','ทำนุบำรุงฯ'],
+                    datasets: [
+                        {
+                            label: 'งบจัดสรร',
+                            data: allocated,
+                            backgroundColor: 'rgba(11,98,181,0.18)',
+                            borderColor: 'rgba(11,98,181,0.7)',
+                            borderWidth: 1.5,
+                            borderRadius: 5,
+                        },
+                        {
+                            label: 'เบิกจ่ายแล้ว',
+                            data: spent,
+                            backgroundColor: 'rgba(243,183,43,0.75)',
+                            borderColor: 'rgba(200,134,0,0.8)',
+                            borderWidth: 1.5,
+                            borderRadius: 5,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.raw) + ' บาท'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Kanit', size: 11 }, color: '#627086' }
+                        },
+                        y: {
+                            grid: { color: '#e8eef6' },
+                            ticks: {
+                                font: { family: 'Kanit', size: 10 },
+                                color: '#627086',
+                                callback: v => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStats(projects) {
+            const total = projects.length;
+            const allocated = projects.reduce((s,p) => s + (+p.allocated||0), 0);
+            const spent     = projects.reduce((s,p) => s + (+p.spent||0), 0);
+            const pct       = allocated > 0 ? ((spent/allocated)*100).toFixed(1) : '0.0';
+            const remaining = allocated - spent;
+
+            setText('statProjects', fmt(total));
+            setText('statAllocated', fmt(allocated));
+            setText('statSpent', fmt(spent));
+            setText('statPct', pct + '%');
+            setText('statRemaining', fmt(remaining));
+        }
+
+        function loadBudgetData() {
+            // 1. อ่านจาก localStorage ก่อน (finance-budget.html บันทึกไว้อัตโนมัติ)
+            const cached = localStorage.getItem('bcnkk_projects');
+            if (cached) {
+                try {
+                    const projects = JSON.parse(cached);
+                    if (projects && projects.length) {
+                        updateStats(projects);
+                        renderBudgetChart(projects);
+                        markExecSource('finance');
+                        return; // ใช้ cache ได้แล้ว ไม่ต้อง fetch
+                    }
+                } catch(e) {}
+            }
+
+            // 2. ถ้าไม่มี cache ให้ fetch จาก GAS
+            fetch(GAS_URL, { redirect: 'follow' })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data && res.data.length) {
+                        localStorage.setItem('bcnkk_projects', JSON.stringify(res.data));
+                        updateStats(res.data);
+                        renderBudgetChart(res.data);
+                        markExecSource('finance');
+                    } else {
+                        showFallback();
+                    }
+                })
+                .catch(() => showFallback());
+        }
+
+        function showFallback() {
+            document.getElementById('budgetLoading').innerHTML =
+                '<div style="text-align:center;padding:8px">' +
+                '<i class="fa-solid fa-circle-info" style="color:var(--primary);margin-bottom:6px;font-size:1.2rem;display:block"></i>' +
+                '<span style="font-size:0.82rem;color:var(--muted)">กรุณาเปิด <a href="work/01_administration/finance-budget/finance-budget.html" target="mainFrame" style="color:var(--primary);font-weight:600">ด้านการเงิน การงบประมาณ</a> ก่อน<br>เพื่อโหลดข้อมูลเข้าระบบ</span>' +
+                '</div>';
+        }
+
+        function createChart(id, config) {
+            const canvas = document.getElementById(id);
+            if (!canvas || typeof Chart === 'undefined') return null;
+            if (homeCharts[id]) homeCharts[id].destroy();
+            homeCharts[id] = new Chart(canvas.getContext('2d'), config);
+            return homeCharts[id];
+        }
+
+        function basePlugins(legendPosition = 'bottom') {
+            return {
+                legend: {
+                    position: legendPosition,
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        color: '#627086',
+                        font: { family: 'Kanit', size: 10 },
+                        padding: 10
+                    }
+                },
+                tooltip: {
+                    titleFont: { family: 'Kanit' },
+                    bodyFont: { family: 'Kanit' }
+                }
+            };
+        }
+
+        function statusDoughnut(id, labels, data, colors = CHART_PALETTE) {
+            const values = data.map(asNumber);
+            const hasData = values.some(v => v > 0);
+            createChart(id, {
+                type: 'doughnut',
+                data: {
+                    labels: hasData ? labels : ['ไม่มีข้อมูล'],
+                    datasets: [{
+                        data: hasData ? values : [1],
+                        backgroundColor: hasData ? colors : ['rgba(148,163,184,0.50)'],
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverOffset: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: basePlugins()
+                }
+            });
+        }
+
+        function compactBar(id, labels, data, color = 'rgba(11,98,181,0.72)') {
+            const values = data.map(asNumber);
+            createChart(id, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: Array.isArray(color) ? color : color,
+                        borderColor: Array.isArray(color) ? color : 'rgba(7,47,100,0.68)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        maxBarThickness: 30
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            titleFont: { family: 'Kanit' },
+                            bodyFont: { family: 'Kanit' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: '#e8eef6' },
+                            ticks: { precision: 0, color: '#627086', font: { family: 'Kanit', size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#627086', font: { family: 'Kanit', size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderHomeCharts() {
+            if (typeof Chart === 'undefined') return;
+            Chart.defaults.font.family = 'Kanit';
+            compactBar('adminOpsChart', ['รอข้อมูล'], [0], 'rgba(148,163,184,0.50)');
+            compactBar('learningSupportChart', ['รอข้อมูล'], [0], 'rgba(148,163,184,0.50)');
+            statusDoughnut('personnelChart', ['รอข้อมูล'], [0]);
+            statusDoughnut('academicChart', ['รอข้อมูล'], [0]);
+            compactBar('researchChart', ['รอข้อมูล'], [0], 'rgba(148,163,184,0.50)');
+            statusDoughnut('assetsChart', ['รอเชื่อมข้อมูล'], [1], ['rgba(148,163,184,0.50)']);
+            statusDoughnut('academicServiceChart', ['รอเชื่อมข้อมูล'], [1], ['rgba(148,163,184,0.50)']);
+            statusDoughnut('cultureChart', ['รอเชื่อมข้อมูล'], [1], ['rgba(148,163,184,0.50)']);
+        }
+
+        async function fetchJson(url) {
+            const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+            const text = await response.text();
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return JSON.parse(text.trim());
+        }
+
+        function getArray(payload, key) {
+            if (Array.isArray(payload)) return payload;
+            if (payload && Array.isArray(payload[key])) return payload[key];
+            if (payload && Array.isArray(payload.data)) return payload.data;
+            return [];
+        }
+
+        function renderAdminSummary(saraban, kpi) {
+            const docs = getArray(saraban, 'data');
+            const inDocs = docs.filter(row => String(row['ประเภท'] || '').trim() === 'เข้า').length;
+            const outDocs = docs.filter(row => String(row['ประเภท'] || '').trim() === 'ออก').length;
+            const pendingDocs = docs.filter(row => String(row['สถานะ'] || '').trim() === 'กำลังดำเนินการ').length;
+
+            const projects = getArray(kpi, 'projects');
+            let kpiPass = 0;
+            let kpiFail = 0;
+            projects.forEach(project => {
+                const status = String(project['สถานะความสำเร็จ KPI'] || '').trim();
+                if (status.includes('ไม่บรรลุ')) kpiFail += 1;
+                else if (status.includes('บรรลุ')) kpiPass += 1;
+            });
+
+            setText('statDocs', fmt(docs.length));
+            setText('statKpiSuccess', percent(kpiPass, projects.length) + '%');
+            compactBar(
+                'adminOpsChart',
+                ['เอกสารเข้า', 'เอกสารออก', 'รอดำเนินการ', 'KPI บรรลุ', 'KPI เสี่ยง'],
+                [inDocs, outDocs, pendingDocs, kpiPass, kpiFail],
+                CHART_PALETTE.slice(0, 5)
+            );
+        }
+
+        function renderLearningSummary(nursing, library) {
+            const labUsers = asNumber(nursing?.summary?.totalUsers);
+            const incidents = asNumber(nursing?.summary?.totalIncidents);
+            const satisfaction = asNumber(nursing?.summary?.overallSatPercent);
+            const libraryRows = getArray(library, 'data').filter(row => row.timestamp && row.timestamp !== '-');
+
+            setText('statLearningUsers', fmt(labUsers));
+            setText('statLibraryRequests', fmt(libraryRows.length));
+            compactBar(
+                'learningSupportChart',
+                ['ผู้ใช้ Lab', 'ยืมหนังสือ', 'อุบัติการณ์', 'พึงพอใจ %'],
+                [labUsers, libraryRows.length, incidents, satisfaction],
+                CHART_PALETTE.slice(0, 4)
+            );
+        }
+
+        function renderPersonnelSummary(personnel) {
+            const rows = getArray(personnel, 'data').filter(row => row.name);
+            const ages = rows.map(row => asNumber(row.age)).filter(age => age > 0);
+            const avgAge = ages.length ? (ages.reduce((sum, age) => sum + age, 0) / ages.length).toFixed(1) : '0.0';
+            const academicSupport = rows.filter(row => String(row.support || '').includes('วิชาการ')).length;
+            const adminSupport = rows.filter(row => String(row.support || '').includes('บริหาร')).length;
+            const fiscalYear = asNumber(yearValue?.textContent) || (new Date().getFullYear() + 543);
+            const retiring = rows.filter(row => asNumber(row.retire) === fiscalYear).length;
+
+            setText('statPersonnelTotal', fmt(rows.length));
+            setText('statPersonnelAvgAge', avgAge);
+            statusDoughnut(
+                'personnelChart',
+                ['สนับสนุนวิชาการ', 'สนับสนุนบริหาร', 'เกษียณปี ' + fiscalYear],
+                [academicSupport, adminSupport, retiring]
+            );
+        }
+
+        function renderAcademicSummary(english) {
+            const students = english?.students?.list || english?.data?.students?.list || [];
+            const pass = students.filter(student => String(student.status || '').trim() === 'ผ่าน').length;
+            const fail = students.filter(student => String(student.status || '').trim() === 'ไม่ผ่าน').length;
+            const passRate = percent(pass, students.length);
+
+            setText('statEnglishTotal', fmt(students.length));
+            setText('statEnglishPassRate', passRate + '%');
+            statusDoughnut('academicChart', ['ผ่าน', 'ไม่ผ่าน'], [pass, fail], [CHART_PALETTE[2], CHART_PALETTE[4]]);
+        }
+
+        function renderResearchSummary(research) {
+            const rows = getArray(research, 'data');
+            const internalFunding = rows
+                .filter(row => String(row.type || '').trim() === 'Internal')
+                .reduce((sum, row) => sum + asNumber(row.funding), 0);
+            const externalFunding = rows
+                .filter(row => String(row.type || '').trim() === 'External')
+                .reduce((sum, row) => sum + asNumber(row.funding), 0);
+            const international = rows.filter(row => String(row.db || '').trim() === 'International').length;
+            const tci1 = rows.filter(row => String(row.db || '').trim() === 'TCI1').length;
+            const tci2 = rows.filter(row => String(row.db || '').trim() === 'TCI2').length;
+
+            setText('statResearchProjects', fmt(rows.length));
+            setText('statResearchFunding', briefMoney(internalFunding + externalFunding));
+            compactBar(
+                'researchChart',
+                ['ทุนภายใน (ลบ.)', 'ทุนภายนอก (ลบ.)', 'International', 'TCI1', 'TCI2'],
+                [internalFunding / 1000000, externalFunding / 1000000, international, tci1, tci2],
+                CHART_PALETTE.slice(0, 5)
+            );
+        }
+
+        async function loadExecutiveData() {
+            updateExecStatus('กำลังโหลดข้อมูลสรุปสด...');
+            const entries = Object.entries(EXEC_SOURCES);
+            const results = await Promise.allSettled(entries.map(([key, url]) => fetchJson(url).then(data => ({ key, data }))));
+            const payload = {};
+
+            results.forEach((result, index) => {
+                const key = entries[index][0];
+                if (result.status === 'fulfilled') {
+                    payload[key] = result.value.data;
+                    markExecSource(key);
+                } else {
+                    console.warn('Executive source failed:', key, result.reason);
+                }
+            });
+
+            renderAdminSummary(payload.saraban, payload.kpi);
+            renderLearningSummary(payload.nursing, payload.library);
+            renderPersonnelSummary(payload.personnel);
+            renderAcademicSummary(payload.english);
+            renderResearchSummary(payload.research);
+            finishExecStatus();
+        }
+
+        renderHomeCharts();
+        loadExecutiveData();
+        loadBudgetData();
+    </script>
+</body>
+</html>

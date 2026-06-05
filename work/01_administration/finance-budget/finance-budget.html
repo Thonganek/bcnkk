@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบกำกับติดตามงบประมาณ - วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น</title>
+    <!-- Tailwind CSS & Config for Dark Mode -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {},
+            },
+        }
+    </script>
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Prompt', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        
+        /* สไตล์สำหรับตอนสั่งพิมพ์ Print */
+        @media print {
+            .no-print { display: none !important; }
+            .print-full-width { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .print-show { display: block !important; }
+            body { background-color: white !important; color: black !important; }
+            @page { size: landscape; margin: 10mm; }
+            table { page-break-inside: auto; }
+            tr    { page-break-inside: avoid; page-break-after: auto; }
+            thead { display: table-header-group; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+    <div id="app" class="min-h-screen pb-10">
+        
+        <!-- Navbar -->
+        <nav class="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg no-print transition-colors duration-300">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-20">
+                    <div class="flex items-center flex-1">
+                        <!-- Logos -->
+                        <div class="flex items-center gap-2 mr-4 bg-white/95 p-1.5 rounded-lg shadow-sm">
+                            <img src="https://www2.bcnkk.ac.th/wp-content/uploads/elementor/thumbs/pi-logo-preview-pjt1uen2tx15jnbkgpqgpxwiomr024ramvd6n00we8.png" alt="สถาบันพระบรมราชชนก" class="h-10 w-auto" title="สถาบันพระบรมราชชนก" onerror="this.src='https://placehold.co/40x40?text=PBRI'">
+                            <img src="https://www2.bcnkk.ac.th/wp-content/uploads/elementor/thumbs/FON-TH-r5hm77oid8dsv76x5h5h9ky479fq0865deg565knb4.jpg" alt="คณะพยาบาลศาสตร์" class="h-10 w-auto" title="คณะพยาบาลศาสตร์" onerror="this.src='https://placehold.co/40x40?text=Nurse'">
+                            <img src="https://www2.bcnkk.ac.th/wp-content/uploads/elementor/thumbs/BCN-logo-thai-NEW65-final-plpeu2f3ebt8or6j16csnmvijw0l3oe0eodo0wctfk.jpg" alt="วพบ.ขอนแก่น" class="h-10 w-auto" title="วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น" onerror="this.src='https://placehold.co/40x40?text=BCNKK'">
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-lg md:text-xl leading-tight">ระบบติดตามงบประมาณโครงการ</span>
+                            <span class="text-xs md:text-sm text-emerald-50 dark:text-gray-300">วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น คณะพยาบาลศาสตร์ สถาบันพระบรมราชชนก</span>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <div class="hidden lg:flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-black/20 ml-6">
+                            <span v-if="syncStatus === 'idle'" class="text-white"><i class="fa-solid fa-cloud"></i> รอข้อมูล</span>
+                            <span v-if="syncStatus === 'syncing'" class="text-yellow-300"><i class="fa-solid fa-spinner fa-spin"></i> กำลังซิงค์...</span>
+                            <span v-if="syncStatus === 'success'" class="text-green-300"><i class="fa-solid fa-check-circle"></i> ซิงค์ล่าสุด {{ lastSync }}</span>
+                            <span v-if="syncStatus === 'error'" class="text-red-300" title="หยุดดึงข้อมูลอัตโนมัติ"><i class="fa-solid fa-circle-exclamation"></i> ซิงค์ล้มเหลว</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 md:gap-4">
+                        <!-- Dark Mode Toggle -->
+                        <button @click="toggleDarkMode" class="text-white bg-black/20 hover:bg-black/40 px-3 py-2 rounded-lg transition shadow text-sm">
+                            <i class="fa-solid fa-moon" v-if="!isDarkMode"></i>
+                            <i class="fa-solid fa-sun text-yellow-300" v-else></i>
+                        </button>
+
+                        <button v-if="!isAdmin" @click="showLogin = true" class="bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow text-sm">
+                            <i class="fa-solid fa-lock mr-1"></i> เข้าสู่ระบบ
+                        </button>
+                        <button v-else @click="logout" class="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition shadow text-sm">
+                            <i class="fa-solid fa-sign-out-alt mr-1"></i> ออกจากระบบ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+            
+            <!-- Controls (Tabs / Print) -->
+            <div class="flex flex-wrap justify-between items-center mb-6 no-print gap-2">
+                <div class="flex flex-wrap gap-2">
+                    <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border dark:border-gray-700'" class="px-5 py-2 rounded-lg font-medium transition shadow-sm">
+                        <i class="fa-solid fa-chart-pie mr-1"></i> Dashboard ตามรายพันธกิจ
+                    </button>
+                    <button @click="currentTab = 'project-dashboard'" :class="currentTab === 'project-dashboard' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border dark:border-gray-700'" class="px-5 py-2 rounded-lg font-medium transition shadow-sm">
+                        <i class="fa-solid fa-chart-bar mr-1"></i> Dashboard ตามรายโครงการ
+                    </button>
+                    <button @click="currentTab = 'data'" :class="currentTab === 'data' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border dark:border-gray-700'" class="px-5 py-2 rounded-lg font-medium transition shadow-sm">
+                        <i class="fa-solid fa-table mr-1"></i> จัดการข้อมูล
+                    </button>
+                </div>
+                <div class="flex gap-2 mt-2 sm:mt-0">
+                    <button @click="printPage" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-sm">
+                        <i class="fa-solid fa-print mr-1"></i> พิมพ์รายงานทั้งหมด
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===================== PRINT ALL REPORT VIEW ===================== -->
+            <div class="hidden print-show print-full-width">
+                <div class="text-center mb-6 border-b pb-4">
+                    <h2 class="text-2xl font-bold text-black">รายงานสรุปฐานข้อมูลโครงการทั้งหมด (อ้างอิงจากฐานข้อมูลล่าสุด)</h2>
+                    <h3 class="text-lg text-gray-700">วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น คณะพยาบาลศาสตร์ สถาบันพระบรมราชชนก</h3>
+                    <p class="text-sm mt-2 text-gray-500">พิมพ์เมื่อ: {{ new Date().toLocaleString('th-TH') }} | จำนวนรวม: {{ projects.length }} โครงการ</p>
+                </div>
+                <table class="w-full text-xs text-left border-collapse border border-gray-300">
+                    <thead class="bg-gray-100 text-gray-800">
+                        <tr>
+                            <th class="border border-gray-300 px-2 py-1">ID</th>
+                            <th class="border border-gray-300 px-2 py-1 w-24">พันธกิจ/รหัส</th>
+                            <th class="border border-gray-300 px-2 py-1 w-64">ชื่อโครงการ / ตัวชี้วัด</th>
+                            <th class="border border-gray-300 px-2 py-1 text-right">จัดสรร (฿)</th>
+                            <th class="border border-gray-300 px-2 py-1 text-right">ใช้จริง (฿)</th>
+                            <th class="border border-gray-300 px-2 py-1 text-center">% ใช้</th>
+                            <th class="border border-gray-300 px-2 py-1 text-right">คงเหลือ (฿)</th>
+                            <th class="border border-gray-300 px-2 py-1 text-center">% เหลือ</th>
+                            <th class="border border-gray-300 px-2 py-1 text-center">ผู้รับผิดชอบ/สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in projects" :key="p.id" class="border-b border-gray-200">
+                            <td class="border border-gray-300 px-2 py-1 text-center text-black">{{ p.id }}</td>
+                            <td class="border border-gray-300 px-2 py-1 text-black"><div class="font-semibold">{{ p.mission }}</div><div>{{ p.code }}</div></td>
+                            <td class="border border-gray-300 px-2 py-1 text-black">
+                                <div class="font-bold">{{ p.name }}</div>
+                                <div v-for="(kpi, idx) in p.kpis" :key="idx" class="text-[10px] text-gray-600">
+                                    {{ kpi.done ? '[✓]' : '[ ]' }} {{ kpi.text }}
+                                </div>
+                            </td>
+                            <td class="border border-gray-300 px-2 py-1 text-right text-black">{{ formatCurrency(p.allocated) }}</td>
+                            <td class="border border-gray-300 px-2 py-1 text-right text-black">{{ formatCurrency(p.spent) }}</td>
+                            <td class="border border-gray-300 px-2 py-1 text-center text-black">{{ p.spentPercent.toFixed(1) }}%</td>
+                            <td class="border border-gray-300 px-2 py-1 text-right text-black">{{ formatCurrency(p.remaining) }}</td>
+                            <td class="border border-gray-300 px-2 py-1 text-center text-black">{{ p.remainingPercent.toFixed(1) }}%</td>
+                            <td class="border border-gray-300 px-2 py-1 text-center text-black">
+                                <div>{{ p.owner }}</div>
+                                <div class="font-semibold text-[10px]">{{ p.status }}</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ===================== UI TABS (HIDE ON PRINT) ===================== -->
+            <div class="no-print">
+                <!-- TAB 1: OVERALL DASHBOARD -->
+                <div v-show="currentTab === 'dashboard'" class="space-y-6">
+                    <!-- Filter -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md flex items-center gap-4 border-t-4 border-emerald-500">
+                        <label class="font-semibold text-gray-700 dark:text-gray-300">ดูข้อมูลตามพันธกิจ:</label>
+                        <select v-model="filterMission" class="border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 flex-1 max-w-md">
+                            <option value="all">ภาพรวมทุกพันธกิจ</option>
+                            <option v-for="m in missionOptions" :key="m" :value="m">{{ m }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-700 dark:to-blue-900 text-white p-5 rounded-xl shadow-md">
+                            <p class="text-blue-100 text-sm">จำนวนโครงการ</p>
+                            <h3 class="text-3xl font-bold">{{ filteredProjects.length }} <span class="text-lg font-normal">โครงการ</span></h3>
+                        </div>
+                        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-700 dark:to-emerald-900 text-white p-5 rounded-xl shadow-md">
+                            <p class="text-emerald-100 text-sm">งบประมาณจัดสรรรวม</p>
+                            <h3 class="text-3xl font-bold">{{ formatCurrency(stats.totalAllocated) }} <span class="text-lg font-normal">บาท</span></h3>
+                        </div>
+                        <div class="bg-gradient-to-br from-amber-500 to-orange-500 dark:from-amber-600 dark:to-orange-700 text-white p-5 rounded-xl shadow-md">
+                            <p class="text-amber-100 text-sm">เบิกจ่ายใช้จริงรวม</p>
+                            <h3 class="text-3xl font-bold">{{ formatCurrency(stats.totalSpent) }} <span class="text-lg font-normal">บาท</span></h3>
+                            <p class="text-sm mt-1 bg-white/20 inline-block px-2 rounded">{{ stats.spentPercent.toFixed(2) }}%</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-rose-500 to-red-600 dark:from-rose-700 dark:to-red-900 text-white p-5 rounded-xl shadow-md">
+                            <p class="text-rose-100 text-sm">งบประมาณคงเหลือรวม</p>
+                            <h3 class="text-3xl font-bold">{{ formatCurrency(stats.totalRemaining) }} <span class="text-lg font-normal">บาท</span></h3>
+                            <p class="text-sm mt-1 bg-white/20 inline-block px-2 rounded">{{ stats.remainingPercent.toFixed(2) }}%</p>
+                        </div>
+                    </div>
+
+                    <!-- Charts (2 Columns) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">สัดส่วนการเบิกจ่ายงบประมาณ<br><span class="text-xs font-normal text-emerald-600 dark:text-emerald-400">(คลิกที่กราฟเพื่อดูรายละเอียด)</span></h3>
+                            <div class="chart-container">
+                                <canvas id="doughnutChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">สถานะโครงการ (กราฟวงกลม)<br><span class="text-xs font-normal text-emerald-600 dark:text-emerald-400">(คลิกที่กราฟเพื่อดูรายละเอียด)</span></h3>
+                            <div class="chart-container">
+                                <canvas id="pieChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Table in Dashboard -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mt-6">
+                        <div class="p-4 bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700 dark:text-gray-200">รายการโครงการ ({{ filterMission === 'all' ? 'ภาพรวมทั้งหมด' : filterMission }})</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-3 py-3">พันธกิจ/รหัส</th>
+                                        <th class="px-3 py-3">ชื่อโครงการ</th>
+                                        <th class="px-3 py-3 text-right">จัดสรร (฿)</th>
+                                        <th class="px-3 py-3 text-right">ใช้จริง (฿) / % ใช้</th>
+                                        <th class="px-3 py-3 text-right">คงเหลือ (฿) / % เหลือ</th>
+                                        <th class="px-3 py-3 text-center w-16">ดูข้อมูล</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in filteredProjects" :key="p.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="font-semibold text-emerald-700 dark:text-emerald-400 text-xs">{{ p.mission }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ p.code }}</div>
+                                        </td>
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="font-medium text-gray-900 dark:text-gray-100 w-48 break-words" :title="p.name">{{ p.name }}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-right align-top text-gray-800 dark:text-gray-200">{{ formatCurrency(p.allocated) }}</td>
+                                        <td class="px-3 py-2 text-right align-top">
+                                            <div class="text-amber-600 dark:text-amber-400 font-medium">{{ formatCurrency(p.spent) }}</div>
+                                            <div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 rounded-full text-[10px] font-semibold">{{ p.spentPercent.toFixed(2) }}%</span></div>
+                                        </td>
+                                        <td class="px-3 py-2 text-right align-top">
+                                            <div class="text-rose-600 dark:text-rose-400 font-medium">{{ formatCurrency(p.remaining) }}</div>
+                                            <div class="mt-1"><span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 rounded-full text-[10px] font-semibold">{{ p.remainingPercent.toFixed(2) }}%</span></div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center align-middle">
+                                            <button @click="viewDetails(p)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg transition border border-blue-100 dark:border-blue-800 shadow-sm" title="ดูข้อมูล">
+                                                <i class="fa-solid fa-eye text-lg"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="filteredProjects.length === 0">
+                                        <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">ไม่พบข้อมูลโครงการ</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: PROJECT DASHBOARD (NEW) -->
+                <div v-show="currentTab === 'project-dashboard'" class="space-y-6">
+                    
+                    <!-- Filter Re-used -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md flex items-center gap-4 border-t-4 border-blue-500">
+                        <label class="font-semibold text-gray-700 dark:text-gray-300">ดูข้อมูลตามพันธกิจ:</label>
+                        <select v-model="filterMission" class="border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 max-w-md">
+                            <option value="all">ภาพรวมทุกพันธกิจ</option>
+                            <option v-for="m in missionOptions" :key="m" :value="m">{{ m }}</option>
+                        </select>
+                    </div>
+
+                    <!-- KPI Charts (NEW) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">เปรียบเทียบตัวชี้วัด (KPI) ที่สำเร็จ / ไม่สำเร็จ<br><span class="text-xs font-normal text-blue-600 dark:text-blue-400">(คลิกที่กราฟเพื่อดูรายละเอียด)</span></h3>
+                            <div class="chart-container">
+                                <canvas id="kpiStatusChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">จำนวนตัวชี้วัด (KPI) ภาพรวมแยกตามพันธกิจ<br><span class="text-xs font-normal text-blue-600 dark:text-blue-400">(คลิกที่กราฟเพื่อดูรายละเอียด)</span></h3>
+                            <div class="chart-container">
+                                <canvas id="kpiMissionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Bar Chart -->
+                    <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">เปรียบเทียบงบประมาณจัดสรรและใช้จริง (รายการที่แสดงในหน้าปัจจุบัน)<br><span class="text-xs font-normal text-blue-600 dark:text-blue-400">(คลิกที่แท่งกราฟเพื่อดูข้อมูลโครงการ)</span></h3>
+                        <div class="chart-container">
+                            <canvas id="projectBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Detail Table with Pagination -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+                        <div class="p-4 bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700 dark:text-gray-200">รายละเอียดผลการดำเนินงาน (หน้า {{ currentPage }} / {{ totalPages || 1 }})</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-3 py-3">พันธกิจ/รหัส</th>
+                                        <th class="px-3 py-3">ชื่อโครงการ/ตัวชี้วัด</th>
+                                        <th class="px-3 py-3 text-right">จัดสรร (฿)</th>
+                                        <th class="px-3 py-3 text-right">ใช้จริง (฿) / % ใช้</th>
+                                        <th class="px-3 py-3 text-right">คงเหลือ (฿) / % เหลือ</th>
+                                        <th class="px-3 py-3 text-center">ผู้รับผิดชอบ/สถานะ</th>
+                                        <th class="px-3 py-3 text-center w-16">ดูข้อมูล</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in paginatedProjects" :key="p.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="font-semibold text-emerald-700 dark:text-emerald-400 text-xs">{{ p.mission }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ p.code }}</div>
+                                        </td>
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="font-medium text-gray-900 dark:text-gray-100 w-48 break-words" :title="p.name">{{ p.name }}</div>
+                                            <div class="mt-1 space-y-1">
+                                                <label v-for="(kpi, idx) in p.kpis" :key="idx" class="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400" :class="{'cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400': isAdmin}">
+                                                    <input type="checkbox" v-model="kpi.done" :disabled="!isAdmin" @change="toggleKpi(p)" class="mt-0.5 rounded text-emerald-500 focus:ring-emerald-500 dark:bg-gray-600 dark:border-gray-500">
+                                                    <span :class="{'line-through text-gray-400 dark:text-gray-500': kpi.done}">{{ kpi.text }}</span>
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2 text-right align-top text-gray-800 dark:text-gray-200">{{ formatCurrency(p.allocated) }}</td>
+                                        <td class="px-3 py-2 text-right align-top">
+                                            <div class="text-amber-600 dark:text-amber-400 font-medium">{{ formatCurrency(p.spent) }}</div>
+                                            <div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 rounded-full text-[10px] font-semibold">{{ p.spentPercent.toFixed(2) }}%</span></div>
+                                        </td>
+                                        <td class="px-3 py-2 text-right align-top">
+                                            <div class="text-rose-600 dark:text-rose-400 font-medium">{{ formatCurrency(p.remaining) }}</div>
+                                            <div class="mt-1"><span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 rounded-full text-[10px] font-semibold">{{ p.remainingPercent.toFixed(2) }}%</span></div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center align-top">
+                                            <div class="text-xs text-gray-700 dark:text-gray-300 mb-1">{{ p.owner }}</div>
+                                            <span :class="getStatusClass(p.status)" class="px-2 py-1 rounded-full text-[10px] font-semibold">{{ p.status }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-center align-middle">
+                                            <button @click="viewDetails(p)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg transition border border-blue-100 dark:border-blue-800 shadow-sm" title="ดูข้อมูล">
+                                                <i class="fa-solid fa-eye text-lg"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="paginatedProjects.length === 0">
+                                        <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">ไม่พบข้อมูลโครงการ</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Pagination Controls -->
+                        <div class="p-4 border-t dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">แสดงรายการที่ {{ filteredProjects.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0 }} ถึง {{ Math.min(currentPage * itemsPerPage, filteredProjects.length) }} จากทั้งหมด {{ filteredProjects.length }} รายการ</span>
+                            <div class="flex gap-2">
+                                <button @click="prevPage" :disabled="currentPage === 1" class="px-3 py-1 border dark:border-gray-600 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 transition"><i class="fa-solid fa-chevron-left"></i> ก่อนหน้า</button>
+                                <button @click="nextPage" :disabled="currentPage >= totalPages" class="px-3 py-1 border dark:border-gray-600 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 transition">ถัดไป <i class="fa-solid fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: DATA MANAGEMENT -->
+                <div v-show="currentTab === 'data'" class="space-y-6">
+                    
+                    <!-- Alert for Non-Admin -->
+                    <div v-if="!isAdmin" class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 p-4 text-yellow-700 dark:text-yellow-300 flex items-center shadow-sm">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl mr-3"></i>
+                        <div>
+                            <p class="font-bold">โหมดอ่านอย่างเดียว (Read-only)</p>
+                            <p class="text-sm">คุณต้องเข้าสู่ระบบด้วยสิทธิ์ผู้ดูแลระบบ เพื่อเพิ่ม ลบ หรือแก้ไขข้อมูลโครงการ</p>
+                            <button @click="showLogin = true" class="mt-2 bg-yellow-500 dark:bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 dark:hover:bg-yellow-700">เข้าสู่ระบบ</button>
+                        </div>
+                    </div>
+
+                    <!-- Add/Edit Form (Admin Only) -->
+                    <div v-if="isAdmin" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-t-4 border-emerald-500 relative">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+                            <i class="fa-solid" :class="editingId ? 'fa-pen-to-square' : 'fa-plus'"></i> 
+                            {{ editingId ? 'แก้ไขข้อมูลโครงการ' : 'เพิ่มโครงการใหม่' }}
+                        </h3>
+                        
+                        <form @submit.prevent="saveProject" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">พันธกิจ</label>
+                                <select v-model="form.mission" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                    <option disabled value="">เลือกพันธกิจ...</option>
+                                    <option v-for="m in missionOptions" :key="m" :value="m">{{ m }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัสโครงการ</label>
+                                <input v-model="form.code" type="text" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อโครงการ</label>
+                                <input v-model="form.name" type="text" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เงินจัดสรร (บาท)</label>
+                                <input v-model.number="form.allocated" type="number" step="0.01" min="0" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เงินที่ใช้จริง (บาท)</label>
+                                <input v-model.number="form.spent" type="number" step="0.01" min="0" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            
+                            <!-- Calculated Previews -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded border dark:border-gray-600 text-sm flex flex-col justify-center">
+                                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">ใช้จริง %:</span> <span class="font-bold text-amber-600 dark:text-amber-400">{{ formSpentPercent }}%</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">คงเหลือ:</span> <span class="font-bold text-rose-600 dark:text-rose-400">{{ formatCurrency(formRemaining) }} ฿</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">คงเหลือ %:</span> <span class="font-bold text-rose-600 dark:text-rose-400">{{ formRemainingPercent }}%</span></div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ตัวชี้วัดโครงการ (KPI) <span class="text-xs text-gray-400 dark:text-gray-500 font-normal">(พิมพ์แล้วกดเพิ่ม)</span></label>
+                                <div class="flex gap-2 mb-2">
+                                    <input v-model="newKpi" @keyup.enter.prevent="addKpi" type="text" placeholder="ระบุตัวชี้วัด..." class="flex-1 border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                    <button type="button" @click="addKpi" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                                <ul class="space-y-1 max-h-24 overflow-y-auto">
+                                    <li v-for="(kpi, idx) in form.kpis" :key="idx" class="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-sm px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800">
+                                        <span class="truncate pr-2">- {{ kpi.text }}</span>
+                                        <button type="button" @click="removeKpi(idx)" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-times"></i></button>
+                                    </li>
+                                    <li v-if="form.kpis.length === 0" class="text-xs text-gray-400 dark:text-gray-500 text-center py-1">ยังไม่ได้เพิ่มตัวชี้วัด</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้รับผิดชอบโครงการ</label>
+                                <input v-model="form.owner" type="text" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สถานะการดำเนินงาน</label>
+                                <select v-model="form.status" required class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                    <option value="ยังไม่ดำเนินการ">ยังไม่ดำเนินการ</option>
+                                    <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+                                    <option value="ดำเนินการเสร็จสิ้น">ดำเนินการเสร็จสิ้น</option>
+                                </select>
+                            </div>
+                            
+                            <div class="md:col-span-3 flex justify-end gap-2 mt-2">
+                                <button type="button" v-if="editingId" @click="resetForm" class="bg-gray-400 hover:bg-gray-500 dark:bg-gray-600 dark:hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition">ยกเลิก</button>
+                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-semibold transition shadow-md">
+                                    <i class="fa-solid fa-save mr-1"></i> {{ editingId ? 'อัปเดตข้อมูล' : 'บันทึกข้อมูล' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Full Data Table -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+                        <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border-b dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-bold text-emerald-800 dark:text-emerald-400">ฐานข้อมูลโครงการทั้งหมด ({{ projects.length }} โครงการ)</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-3 py-3">พันธกิจ/รหัส</th>
+                                        <th class="px-3 py-3">ชื่อโครงการ/ตัวชี้วัด</th>
+                                        <th class="px-3 py-3 text-right">จัดสรร (฿)</th>
+                                        <th class="px-3 py-3 text-right">ใช้จริง (฿) / % ใช้</th>
+                                        <th class="px-3 py-3 text-right">คงเหลือ (฿) / % เหลือ</th>
+                                        <th class="px-3 py-3 text-center">ผู้รับผิดชอบ/สถานะ</th>
+                                        <th class="px-3 py-3 text-center w-24">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in projects" :key="p.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="font-semibold text-emerald-700 dark:text-emerald-400 text-xs">{{ p.mission }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ p.code }}</div>
+                                        </td>
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="font-medium text-gray-900 dark:text-gray-100 w-48 break-words" :title="p.name">{{ p.name }}</div>
+                                            <div class="mt-1 space-y-1">
+                                                <label v-for="(kpi, idx) in p.kpis" :key="idx" class="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400" :class="{'cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400': isAdmin}">
+                                                    <input type="checkbox" v-model="kpi.done" :disabled="!isAdmin" @change="toggleKpi(p)" class="mt-0.5 rounded text-emerald-500 focus:ring-emerald-500 dark:bg-gray-600 dark:border-gray-500">
+                                                    <span :class="{'line-through text-gray-400 dark:text-gray-500': kpi.done}">{{ kpi.text }}</span>
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2 text-right align-top text-gray-800 dark:text-gray-200">{{ formatCurrency(p.allocated) }}</td>
+                                        <td class="px-3 py-2 text-right align-top">
+                                            <div class="text-amber-600 dark:text-amber-400 font-medium">{{ formatCurrency(p.spent) }}</div>
+                                            <div class="mt-1"><span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 rounded-full text-[10px] font-semibold">{{ p.spentPercent.toFixed(2) }}%</span></div>
+                                        </td>
+                                        <td class="px-3 py-2 text-right align-top">
+                                            <div class="text-rose-600 dark:text-rose-400 font-medium">{{ formatCurrency(p.remaining) }}</div>
+                                            <div class="mt-1"><span class="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 rounded-full text-[10px] font-semibold">{{ p.remainingPercent.toFixed(2) }}%</span></div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center align-top">
+                                            <div class="text-xs text-gray-700 dark:text-gray-300 mb-1">{{ p.owner }}</div>
+                                            <span :class="getStatusClass(p.status)" class="px-2 py-1 rounded-full text-[10px] font-semibold">{{ p.status }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-center align-middle whitespace-nowrap">
+                                            <button @click="viewDetails(p)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mx-1 bg-blue-50 dark:bg-blue-900/30 p-1.5 rounded" title="ดูข้อมูล"><i class="fa-solid fa-eye"></i></button>
+                                            <button v-if="isAdmin" @click="editProject(p)" class="text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 mx-1 bg-amber-50 dark:bg-amber-900/30 p-1.5 rounded" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
+                                            <button v-if="isAdmin" @click="deleteProject(p.id)" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 mx-1 bg-red-50 dark:bg-red-900/30 p-1.5 rounded" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="projects.length === 0">
+                                        <td :colspan="isAdmin ? 7 : 6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">ยังไม่มีข้อมูลโครงการ</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div> </div>
+
+        <!-- Chart Detail Modal (Popup สำหรับคลิกดูข้อมูลจากกราฟ) -->
+        <div v-if="chartDetailModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] px-4 backdrop-blur-sm no-print">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col relative transform transition-all">
+                <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900 rounded-t-2xl">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 truncate pr-4">
+                        <i class="fa-solid fa-chart-pie text-emerald-600 dark:text-emerald-400 mr-2"></i>{{ chartDetailModal.title }}
+                    </h3>
+                    <button @click="chartDetailModal = null" class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-2xl transition"><i class="fa-solid fa-times"></i></button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto">
+                    <div v-if="chartDetailModal.data.length === 0" class="text-center text-gray-500 dark:text-gray-400 py-8">ไม่พบข้อมูลในส่วนนี้</div>
+                    <table v-else class="w-full text-sm text-left border dark:border-gray-700">
+                        <thead class="bg-gray-100 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
+                            <!-- Project Status Modal Columns -->
+                            <tr v-if="chartDetailModal.type === 'project'">
+                                <th class="px-3 py-2 border-b dark:border-gray-600 w-24">รหัส</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600">ชื่อโครงการ</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600 text-center">ผู้รับผิดชอบ</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600 text-center w-16">ดูข้อมูล</th>
+                            </tr>
+                            <!-- Budget Modal Columns -->
+                            <tr v-if="chartDetailModal.type === 'budget'">
+                                <th class="px-3 py-2 border-b dark:border-gray-600 w-24">รหัส</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600">ชื่อโครงการ</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600 text-right">{{ chartDetailModal.isSpent ? 'ใช้จริง (฿)' : 'คงเหลือ (฿)' }}</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600 text-center w-16">ดูข้อมูล</th>
+                            </tr>
+                            <!-- KPI Modal Columns -->
+                            <tr v-if="chartDetailModal.type === 'kpi'">
+                                <th class="px-3 py-2 border-b dark:border-gray-600 w-1/3">ชื่อโครงการ</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600">ตัวชี้วัด (KPI)</th>
+                                <th class="px-3 py-2 border-b dark:border-gray-600 text-center w-20">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Project Status Iteration -->
+                            <template v-if="chartDetailModal.type === 'project'">
+                                <tr v-for="item in chartDetailModal.data" :key="item.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">{{ item.code }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{{ item.name }}</td>
+                                    <td class="px-3 py-2 text-center text-gray-800 dark:text-gray-200">{{ item.owner }}</td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button @click="viewDetailsFromChart(item)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 p-1.5 rounded"><i class="fa-solid fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <!-- Budget Iteration -->
+                            <template v-if="chartDetailModal.type === 'budget'">
+                                <tr v-for="item in chartDetailModal.data" :key="item.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">{{ item.code }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{{ item.name }}</td>
+                                    <td class="px-3 py-2 text-right font-bold" :class="chartDetailModal.isSpent ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'">
+                                        {{ formatCurrency(chartDetailModal.isSpent ? item.spent : item.remaining) }}
+                                    </td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button @click="viewDetailsFromChart(item)" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 p-1.5 rounded"><i class="fa-solid fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <!-- KPI Iteration -->
+                            <template v-if="chartDetailModal.type === 'kpi'">
+                                <tr v-for="(item, idx) in chartDetailModal.data" :key="idx" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400 align-top">{{ item.projectName }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800 dark:text-gray-200 align-top">{{ item.text }}</td>
+                                    <td class="px-3 py-2 text-center align-top">
+                                        <i :class="item.done ? 'fa-solid fa-check-circle text-emerald-500 text-lg' : 'fa-regular fa-circle text-gray-300 dark:text-gray-600 text-lg'"></i>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl flex justify-end">
+                    <button @click="chartDetailModal = null" class="bg-gray-800 dark:bg-gray-700 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-600 transition shadow-sm">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Details Modal (Popup) -->
+        <div v-if="selectedProject" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[120] px-4 backdrop-blur-sm no-print">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative transform transition-all">
+                <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900 rounded-t-2xl">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 truncate pr-4"><i class="fa-solid fa-file-invoice text-emerald-600 dark:text-emerald-400 mr-2"></i>รายละเอียดโครงการ</h3>
+                    <button @click="selectedProject = null" class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-2xl transition"><i class="fa-solid fa-times"></i></button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto space-y-5">
+                    <!-- Header Info -->
+                    <div>
+                        <div class="inline-block px-3 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-full mb-2">{{ selectedProject.mission }}</div>
+                        <h4 class="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ selectedProject.name }}</h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">รหัสโครงการ: <span class="font-semibold">{{ selectedProject.code }}</span></p>
+                    </div>
+
+                    <!-- Budget Info Grid -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">เงินจัดสรร (บาท)</p>
+                            <p class="font-bold text-gray-800 dark:text-gray-200">{{ formatCurrency(selectedProject.allocated) }}</p>
+                        </div>
+                        <div class="bg-amber-50 dark:bg-amber-900/30 p-3 rounded-lg border border-amber-100 dark:border-amber-800/50">
+                            <p class="text-xs text-amber-600 dark:text-amber-400 mb-1">ใช้จริง (บาท)</p>
+                            <p class="font-bold text-amber-700 dark:text-amber-300">{{ formatCurrency(selectedProject.spent) }} <span class="text-[10px] font-normal">({{ selectedProject.spentPercent.toFixed(1) }}%)</span></p>
+                        </div>
+                        <div class="bg-rose-50 dark:bg-rose-900/30 p-3 rounded-lg border border-rose-100 dark:border-rose-800/50">
+                            <p class="text-xs text-rose-600 dark:text-rose-400 mb-1">คงเหลือ (บาท)</p>
+                            <p class="font-bold text-rose-700 dark:text-rose-300">{{ formatCurrency(selectedProject.remaining) }} <span class="text-[10px] font-normal">({{ selectedProject.remainingPercent.toFixed(1) }}%)</span></p>
+                        </div>
+                    </div>
+
+                    <!-- KPI List -->
+                    <div>
+                        <p class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 border-b dark:border-gray-700 pb-1">รายการตัวชี้วัด (KPI)</p>
+                        <div v-if="selectedProject.kpis && selectedProject.kpis.length > 0" class="space-y-2">
+                            <div v-for="(kpi, idx) in selectedProject.kpis" :key="idx" class="flex items-start gap-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <i :class="kpi.done ? 'fa-solid fa-check-circle text-emerald-500 mt-0.5' : 'fa-regular fa-circle text-gray-300 dark:text-gray-600 mt-0.5'"></i>
+                                <span class="text-sm text-gray-700 dark:text-gray-300" :class="{'line-through text-gray-400 dark:text-gray-500': kpi.done}">{{ kpi.text }}</span>
+                            </div>
+                        </div>
+                        <p v-else class="text-sm text-gray-500 dark:text-gray-400 italic">ไม่มีตัวชี้วัด</p>
+                    </div>
+
+                    <!-- Footer Info -->
+                    <div class="grid grid-cols-2 gap-4 border-t dark:border-gray-700 pt-4">
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">ผู้รับผิดชอบ</p>
+                            <p class="font-medium text-sm text-gray-800 dark:text-gray-200">{{ selectedProject.owner }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">สถานะโครงการ</p>
+                            <span :class="getStatusClass(selectedProject.status)" class="px-2 py-1 rounded-full text-xs font-semibold">{{ selectedProject.status }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                    <div>
+                        <i class="fa-regular fa-clock mr-1"></i> อัปเดตล่าสุด: <span class="font-semibold">{{ lastSync || 'ดึงข้อมูลล่าสุดจากระบบ' }}</span>
+                    </div>
+                    <button @click="selectedProject = null" class="bg-gray-800 dark:bg-gray-700 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-600 transition shadow-sm">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div v-if="showLogin" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4 no-print">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-sm">
+                <div class="text-center mb-4">
+                    <i class="fa-solid fa-user-shield text-4xl text-emerald-500 mb-2"></i>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">เข้าสู่ระบบผู้ดูแล</h3>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                        <input v-model="loginData.username" @keyup.enter="login" type="text" class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                        <input v-model="loginData.password" @keyup.enter="login" type="password" class="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button @click="showLogin = false" class="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600">ยกเลิก</button>
+                        <button @click="login" class="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700">เข้าสู่ระบบ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        // Register Global Chart.js DataLabels Plugin
+        Chart.register(ChartDataLabels);
+
+        createApp({
+            data() {
+                return {
+                    // Auth & UI State
+                    isDarkMode: false, 
+                    isAdmin: false,
+                    showLogin: false,
+                    loginData: { username: '', password: '' },
+                    currentTab: 'dashboard', 
+                    filterMission: 'all',
+                    
+                    gasUrl: 'https://script.google.com/macros/s/AKfycbwATl0cQlRA2DLfbHTmCzN0e_IY-lPtO5jRGPvH3xUW8MUc924a2A6UeX32eAMVxrqp/exec',
+                    syncStatus: 'idle',
+                    lastSync: '',
+                    pollingInterval: null,
+                    consecutiveErrors: 0, 
+                    
+                    // Detail Modal States
+                    selectedProject: null,
+                    chartDetailModal: null, 
+
+                    // Pagination for Project Dashboard
+                    currentPage: 1,
+                    itemsPerPage: 10,
+                    
+                    // Options
+                    missionOptions: [
+                        'ผลิตบัณฑิต',
+                        'วิจัย',
+                        'บริหาร',
+                        'บริการวิชาการ',
+                        'ทำนุบำรุงศิลปวัฒนธรรม'
+                    ],
+
+                    // Form State
+                    editingId: null,
+                    newKpi: '',
+                    form: {
+                        mission: '', code: '', name: '', allocated: 0, spent: 0, kpis: [], owner: '', status: 'ยังไม่ดำเนินการ'
+                    },
+
+                    // Main Data Array
+                    projects: []
+                }
+            },
+            computed: {
+                formRemaining() {
+                    return Math.max(0, this.form.allocated - this.form.spent);
+                },
+                formSpentPercent() {
+                    if (this.form.allocated <= 0) return 0;
+                    return ((this.form.spent / this.form.allocated) * 100).toFixed(2);
+                },
+                formRemainingPercent() {
+                    if (this.form.allocated <= 0) return 0;
+                    return ((this.formRemaining / this.form.allocated) * 100).toFixed(2);
+                },
+
+                filteredProjects() {
+                    if (this.filterMission === 'all') return this.projects;
+                    return this.projects.filter(p => p.mission === this.filterMission);
+                },
+
+                totalPages() {
+                    return Math.ceil(this.filteredProjects.length / this.itemsPerPage);
+                },
+                paginatedProjects() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.filteredProjects.slice(start, end);
+                },
+
+                stats() {
+                    let totalAllocated = 0;
+                    let totalSpent = 0;
+                    
+                    this.filteredProjects.forEach(p => {
+                        totalAllocated += parseFloat(p.allocated || 0);
+                        totalSpent += parseFloat(p.spent || 0);
+                    });
+
+                    let totalRemaining = totalAllocated - totalSpent;
+                    let spentPercent = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
+                    let remainingPercent = totalAllocated > 0 ? (totalRemaining / totalAllocated) * 100 : 0;
+
+                    return { totalAllocated, totalSpent, totalRemaining, spentPercent, remainingPercent };
+                }
+            },
+            watch: {
+                isDarkMode(val) {
+                    if (val) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                    this.updateChartColors();
+                },
+                projects: {
+                    deep: true,
+                    handler(newVal) {
+                        newVal.sort((a, b) => a.id - b.id);
+                        localStorage.setItem('bcnkk_projects', JSON.stringify(newVal));
+                        this.$nextTick(() => { this.updateCharts(); });
+                    }
+                },
+                filterMission() {
+                    this.currentPage = 1; 
+                    this.$nextTick(() => { this.updateCharts(); });
+                },
+                currentPage() {
+                    this.$nextTick(() => { this.updateCharts(); });
+                },
+                currentTab(val) {
+                    if(val === 'dashboard' || val === 'project-dashboard') {
+                        this.$nextTick(() => { this.updateCharts(); });
+                    }
+                }
+            },
+            mounted() {
+                // Initialize Dark Mode
+                if (localStorage.getItem('darkMode') === 'true') {
+                    this.isDarkMode = true;
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && localStorage.getItem('darkMode') === null) {
+                    this.isDarkMode = true;
+                }
+
+                this.$nextTick(() => { this.initCharts(); });
+                this.fetchDataFromGAS();
+                this.pollingInterval = setInterval(() => {
+                    this.fetchDataFromGAS();
+                }, 5000);
+            },
+            beforeUnmount() {
+                if (this.pollingInterval) clearInterval(this.pollingInterval);
+            },
+            methods: {
+                toggleDarkMode() {
+                    this.isDarkMode = !this.isDarkMode;
+                    localStorage.setItem('darkMode', this.isDarkMode);
+                },
+                updateChartColors() {
+                    const textColor = this.isDarkMode ? '#e5e7eb' : '#374151';
+                    const gridColor = this.isDarkMode ? '#374151' : '#e5e7eb';
+
+                    Chart.defaults.color = textColor;
+                    Chart.defaults.borderColor = gridColor;
+
+                    if(this.kpiMissionChart) this.kpiMissionChart.options.plugins.datalabels.color = textColor;
+                    if(this.projectBarChart) this.projectBarChart.options.plugins.datalabels.color = textColor;
+
+                    if(this.doughnutChart) this.doughnutChart.update();
+                    if(this.pieChart) this.pieChart.update();
+                    if(this.kpiStatusChart) this.kpiStatusChart.update();
+                    if(this.kpiMissionChart) this.kpiMissionChart.update();
+                    if(this.projectBarChart) this.projectBarChart.update();
+                },
+
+                viewDetailsFromChart(project) {
+                    this.chartDetailModal = null; 
+                    setTimeout(() => { this.selectedProject = project; }, 100); 
+                },
+                viewDetails(project) {
+                    this.selectedProject = project;
+                },
+
+                nextPage() {
+                    if (this.currentPage < this.totalPages) this.currentPage++;
+                },
+                prevPage() {
+                    if (this.currentPage > 1) this.currentPage--;
+                },
+
+                formatCurrency(val) {
+                    return Number(val).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                },
+                getStatusClass(status) {
+                    if (status === 'ยังไม่ดำเนินการ') return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-500';
+                    if (status === 'กำลังดำเนินการ') return 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700';
+                    if (status === 'ดำเนินการเสร็จสิ้น') return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700';
+                    return '';
+                },
+
+                login() {
+                    if (this.loginData.username === 'admin' && this.loginData.password === '1234') {
+                        this.isAdmin = true;
+                        this.showLogin = false;
+                        this.loginData = { username: '', password: '' };
+                        Swal.fire({ title: 'เข้าสู่ระบบสำเร็จ', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                    } else {
+                        Swal.fire('ผิดพลาด', 'Username หรือ Password ไม่ถูกต้อง', 'error');
+                    }
+                },
+                logout() {
+                    this.isAdmin = false;
+                    this.currentTab = 'dashboard';
+                    Swal.fire({ title: 'ออกจากระบบแล้ว', icon: 'info', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                },
+
+                addKpi() {
+                    if (this.newKpi.trim() !== '') {
+                        this.form.kpis.push({ text: this.newKpi.trim(), done: false });
+                        this.newKpi = '';
+                    }
+                },
+                removeKpi(idx) {
+                    this.form.kpis.splice(idx, 1);
+                },
+                toggleKpi(p) {
+                    this.sendToGAS(p, 'update');
+                },
+                resetForm() {
+                    this.editingId = null;
+                    this.newKpi = '';
+                    this.form = { mission: '', code: '', name: '', allocated: 0, spent: 0, kpis: [], owner: '', status: 'ยังไม่ดำเนินการ' };
+                },
+                editProject(p) {
+                    this.editingId = p.id;
+                    this.form = { ...p };
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+                saveProject() {
+                    const projectData = {
+                        ...this.form,
+                        id: this.editingId || Date.now(),
+                        spentPercent: parseFloat(this.formSpentPercent),
+                        remaining: this.formRemaining,
+                        remainingPercent: parseFloat(this.formRemainingPercent)
+                    };
+
+                    if (this.editingId) {
+                        const index = this.projects.findIndex(p => p.id === this.editingId);
+                        this.projects[index] = projectData;
+                        Swal.fire('สำเร็จ!', 'อัปเดตข้อมูลโครงการเรียบร้อยแล้ว', 'success');
+                    } else {
+                        this.projects.push(projectData);
+                        Swal.fire('สำเร็จ!', 'เพิ่มข้อมูลโครงการใหม่เรียบร้อยแล้ว', 'success');
+                    }
+                    
+                    this.projects.sort((a, b) => a.id - b.id);
+                    this.sendToGAS(projectData, 'update');
+                    this.resetForm();
+                },
+                deleteProject(id) {
+                    Swal.fire({
+                        title: 'ยืนยันการลบ?',
+                        text: "คุณไม่สามารถกู้คืนข้อมูลนี้ได้ และข้อมูลในชีตจะถูกลบด้วย!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'ใช่, ลบเลย!',
+                        cancelButtonText: 'ยกเลิก'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.projects = this.projects.filter(p => p.id !== id);
+                            Swal.fire('ลบแล้ว!', 'ข้อมูลโครงการถูกลบแล้ว.', 'success');
+                            this.sendToGAS({ id: id }, 'delete');
+                        }
+                    })
+                },
+
+                fetchDataFromGAS() {
+                    if (!this.gasUrl) return;
+                    if (this.syncStatus === 'syncing') return; 
+
+                    fetch(this.gasUrl)
+                        .then(res => {
+                            if (!res.ok) throw new Error('Network response was not ok');
+                            return res.json();
+                        })
+                        .then(res => {
+                            if (res.status === 'success' && res.data) {
+                                const sortedNewData = res.data.sort((a, b) => a.id - b.id);
+                                const currentDataStr = JSON.stringify(this.projects);
+                                const newDataStr = JSON.stringify(sortedNewData);
+                                
+                                if (currentDataStr !== newDataStr) {
+                                    this.projects = sortedNewData;
+                                }
+                                
+                                this.syncStatus = 'success';
+                                this.lastSync = new Date().toLocaleTimeString('th-TH');
+                                this.consecutiveErrors = 0; 
+                            }
+                        })
+                        .catch(err => {
+                            this.syncStatus = 'error';
+                            this.consecutiveErrors++;
+                            
+                            if (this.consecutiveErrors >= 3 && this.pollingInterval) {
+                                clearInterval(this.pollingInterval);
+                                this.pollingInterval = null;
+                            }
+                        });
+                },
+
+                sendToGAS(data, actionType) {
+                    if (!this.gasUrl) return; 
+                    this.syncStatus = 'syncing';
+                    let gasData = { action: actionType, id: data.id };
+
+                    if (actionType === 'update') {
+                        let kpiText = '-';
+                        if (data.kpis && data.kpis.length > 0) {
+                            kpiText = data.kpis.map(k => (k.done ? '[x] ' : '[ ] ') + k.text).join('\n');
+                        }
+                        gasData = {
+                            action: actionType,
+                            id: data.id,
+                            mission: data.mission,
+                            code: data.code,
+                            name: data.name,
+                            allocated: data.allocated,
+                            used: data.spent, 
+                            kpi: kpiText,
+                            manager: data.owner,
+                            status: data.status
+                        };
+                    }
+
+                    fetch(this.gasUrl, {
+                        method: 'POST',
+                        body: JSON.stringify(gasData)
+                    }).then(response => {
+                        if (response.ok || response.type === 'opaque') {
+                            this.syncStatus = 'success';
+                            this.lastSync = new Date().toLocaleTimeString('th-TH');
+                            this.fetchDataFromGAS();
+                        } else {
+                            throw new Error('Network response was not ok');
+                        }
+                    }).catch(err => {
+                        this.syncStatus = 'error';
+                    });
+                },
+
+                printPage() {
+                    if (!this.gasUrl) {
+                        window.print();
+                        return;
+                    }
+                    
+                    Swal.fire({
+                        title: 'กำลังเตรียมข้อมูลรายงาน...',
+                        text: 'ระบบกำลังดึงข้อมูลล่าสุดจากฐานข้อมูลเพื่อเตรียมพิมพ์ กรุณารอสักครู่',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    this.syncStatus = 'syncing';
+                    fetch(this.gasUrl)
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.status === 'success' && res.data) {
+                                const sortedNewData = res.data.sort((a, b) => a.id - b.id);
+                                this.projects = sortedNewData;
+                                this.syncStatus = 'success';
+                                this.lastSync = new Date().toLocaleTimeString('th-TH');
+                                
+                                Swal.close();
+                                
+                                this.$nextTick(() => {
+                                    setTimeout(() => { window.print(); }, 500);
+                                });
+                            } else {
+                                throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+                            }
+                        })
+                        .catch(err => {
+                            this.syncStatus = 'error';
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'ไม่สามารถดึงข้อมูลล่าสุดได้',
+                                text: 'ระบบจะใช้ข้อมูลฉบับที่บันทึกไว้ในหน้าจอปัจจุบันในการออกรายงาน',
+                                confirmButtonText: 'ดำเนินการพิมพ์ต่อไป'
+                            }).then(() => {
+                                setTimeout(() => { window.print(); }, 500);
+                            });
+                        });
+                },
+
+                handleDoughnutClick(index) {
+                    const isSpent = index === 0;
+                    const data = this.filteredProjects.filter(p => isSpent ? p.spent > 0 : p.remaining > 0);
+                    this.chartDetailModal = {
+                        title: isSpent ? 'รายละเอียด: เบิกจ่ายไปแล้ว' : 'รายละเอียด: งบประมาณคงเหลือ',
+                        type: 'budget',
+                        isSpent: isSpent,
+                        data: data
+                    };
+                },
+                handlePieClick(index) {
+                    const statuses = ['ยังไม่ดำเนินการ', 'กำลังดำเนินการ', 'ดำเนินการเสร็จสิ้น'];
+                    const status = statuses[index];
+                    const data = this.filteredProjects.filter(p => p.status === status);
+                    this.chartDetailModal = {
+                        title: `รายการโครงการสถานะ: ${status}`,
+                        type: 'project',
+                        data: data
+                    };
+                },
+                handleKpiStatusClick(index) {
+                    const isDone = index === 0;
+                    let kpis = [];
+                    this.filteredProjects.forEach(p => {
+                        if(p.kpis) {
+                            p.kpis.forEach(k => {
+                                if(k.done === isDone) kpis.push({ projectName: p.name, text: k.text, done: k.done });
+                            });
+                        }
+                    });
+                    this.chartDetailModal = {
+                        title: `ตัวชี้วัด (KPI) ที่: ${isDone ? 'สำเร็จแล้ว' : 'ยังไม่สำเร็จ'}`,
+                        type: 'kpi',
+                        data: kpis
+                    };
+                },
+                handleKpiMissionClick(index) {
+                    const mission = this.missionOptions[index];
+                    let kpis = [];
+                    this.filteredProjects.filter(p => p.mission === mission).forEach(p => {
+                        if(p.kpis) {
+                            p.kpis.forEach(k => {
+                                kpis.push({ projectName: p.name, text: k.text, done: k.done });
+                            });
+                        }
+                    });
+                    this.chartDetailModal = {
+                        title: `ตัวชี้วัด (KPI) ในพันธกิจ: ${mission}`,
+                        type: 'kpi',
+                        data: kpis
+                    };
+                },
+                handleProjectBarClick(index) {
+                    const project = this.paginatedProjects[index];
+                    if (project) this.viewDetails(project);
+                },
+
+                initCharts() {
+                    const ctxDoughnut = document.getElementById('doughnutChart')?.getContext('2d');
+                    const ctxPie = document.getElementById('pieChart')?.getContext('2d');
+                    const ctxProjectBar = document.getElementById('projectBarChart')?.getContext('2d');
+                    const ctxKpiStatus = document.getElementById('kpiStatusChart')?.getContext('2d');
+                    const ctxKpiMission = document.getElementById('kpiMissionChart')?.getContext('2d');
+
+                    if (this.doughnutChart) this.doughnutChart.destroy();
+                    if (this.pieChart) this.pieChart.destroy();
+                    if (this.projectBarChart) this.projectBarChart.destroy();
+                    if (this.kpiStatusChart) this.kpiStatusChart.destroy();
+                    if (this.kpiMissionChart) this.kpiMissionChart.destroy();
+
+                    Chart.defaults.color = this.isDarkMode ? '#e5e7eb' : '#374151';
+                    Chart.defaults.borderColor = this.isDarkMode ? '#374151' : '#e5e7eb';
+
+                    const getCommonPieOptions = (clickHandler) => ({
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        onHover: (event, chartElement) => {
+                            event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                        },
+                        onClick: (e, elements) => {
+                            if (elements.length > 0) clickHandler(elements[0].index);
+                        },
+                        plugins: { 
+                            legend: { position: 'bottom' },
+                            datalabels: {
+                                color: '#fff',
+                                font: { weight: 'bold', size: 12 },
+                                formatter: (value, context) => {
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    if (total === 0 || value === 0) return '';
+                                    return ((value / total) * 100).toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    });
+
+                    if(ctxDoughnut) {
+                        this.doughnutChart = new Chart(ctxDoughnut, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['เบิกจ่ายไปแล้ว', 'คงเหลือ'],
+                                datasets: [{ data: [0, 0], backgroundColor: ['#f59e0b', '#10b981'], hoverOffset: 4, borderColor: 'transparent' }]
+                            },
+                            options: getCommonPieOptions(this.handleDoughnutClick)
+                        });
+                    }
+
+                    if(ctxPie) {
+                        this.pieChart = new Chart(ctxPie, {
+                            type: 'pie',
+                            data: {
+                                labels: ['ยังไม่ดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น'],
+                                datasets: [{ data: [0, 0, 0], backgroundColor: ['#d1d5db', '#3b82f6', '#10b981'], hoverOffset: 4, borderColor: 'transparent' }]
+                            },
+                            options: getCommonPieOptions(this.handlePieClick)
+                        });
+                    }
+
+                    if(ctxKpiStatus) {
+                        this.kpiStatusChart = new Chart(ctxKpiStatus, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['สำเร็จแล้ว', 'ยังไม่สำเร็จ'],
+                                datasets: [{ data: [0, 0], backgroundColor: ['#10b981', '#f43f5e'], hoverOffset: 4, borderColor: 'transparent' }]
+                            },
+                            options: getCommonPieOptions(this.handleKpiStatusClick)
+                        });
+                    }
+
+                    if(ctxKpiMission) {
+                        this.kpiMissionChart = new Chart(ctxKpiMission, {
+                            type: 'bar',
+                            data: {
+                                labels: this.missionOptions,
+                                datasets: [{ label: 'จำนวนตัวชี้วัดทั้งหมด', data: [], backgroundColor: '#6366f1', borderRadius: 3 }]
+                            },
+                            options: { 
+                                responsive: true, maintainAspectRatio: false, 
+                                onHover: (event, chartElement) => {
+                                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                                },
+                                onClick: (e, elements) => {
+                                    if (elements.length > 0) this.handleKpiMissionClick(elements[0].index);
+                                },
+                                plugins: { 
+                                    legend: { display: false },
+                                    datalabels: {
+                                        color: this.isDarkMode ? '#e5e7eb' : '#374151',
+                                        anchor: 'end',
+                                        align: 'top',
+                                        font: { weight: 'bold', size: 11 },
+                                        formatter: (value) => value > 0 ? value : ''
+                                    }
+                                },
+                                scales: { 
+                                    y: { beginAtZero: true, grace: '15%', ticks: { stepSize: 1 } } 
+                                }
+                            }
+                        });
+                    }
+
+                    if(ctxProjectBar) {
+                        this.projectBarChart = new Chart(ctxProjectBar, {
+                            type: 'bar',
+                            data: {
+                                labels: [],
+                                datasets: [
+                                    { label: 'จัดสรร', data: [], backgroundColor: '#10b981', borderRadius: 3 },
+                                    { label: 'ใช้จริง', data: [], backgroundColor: '#f59e0b', borderRadius: 3 }
+                                ]
+                            },
+                            options: { 
+                                responsive: true, maintainAspectRatio: false, 
+                                onHover: (event, chartElement) => {
+                                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                                },
+                                onClick: (e, elements) => {
+                                    if (elements.length > 0) this.handleProjectBarClick(elements[0].index);
+                                },
+                                plugins: { 
+                                    legend: { position: 'top' },
+                                    datalabels: {
+                                        color: this.isDarkMode ? '#e5e7eb' : '#374151',
+                                        anchor: 'end',
+                                        align: 'top',
+                                        font: { size: 10 },
+                                        formatter: (value) => {
+                                            if (value === 0) return '';
+                                            return Number(value).toLocaleString();
+                                        }
+                                    }
+                                },
+                                scales: { 
+                                    y: { beginAtZero: true, grace: '20%' },
+                                    x: { grid: { display: false } }
+                                }
+                            }
+                        });
+                    }
+                    
+                    this.updateCharts();
+                },
+                updateCharts() {
+                    if (this.doughnutChart && this.pieChart) {
+                        this.doughnutChart.data.datasets[0].data = [
+                            this.stats.totalSpent,
+                            this.stats.totalRemaining
+                        ];
+                        this.doughnutChart.update();
+
+                        let statusData = [0, 0, 0];
+                        this.filteredProjects.forEach(p => {
+                            if (p.status === 'ยังไม่ดำเนินการ') statusData[0]++;
+                            else if (p.status === 'กำลังดำเนินการ') statusData[1]++;
+                            else if (p.status === 'ดำเนินการเสร็จสิ้น') statusData[2]++;
+                        });
+                        this.pieChart.data.datasets[0].data = statusData;
+                        this.pieChart.update();
+                    }
+
+                    if (this.kpiStatusChart && this.kpiMissionChart) {
+                        let kpiSuccess = 0;
+                        let kpiPending = 0;
+                        let missionKpiCount = { 'ผลิตบัณฑิต': 0, 'วิจัย': 0, 'บริหาร': 0, 'บริการวิชาการ': 0, 'ทำนุบำรุงศิลปวัฒนธรรม': 0 };
+
+                        this.filteredProjects.forEach(p => {
+                            if (p.kpis) {
+                                p.kpis.forEach(k => {
+                                    k.done ? kpiSuccess++ : kpiPending++;
+                                    if (missionKpiCount[p.mission] !== undefined) {
+                                        missionKpiCount[p.mission]++;
+                                    }
+                                });
+                            }
+                        });
+
+                        this.kpiStatusChart.data.datasets[0].data = [kpiSuccess, kpiPending];
+                        this.kpiStatusChart.update();
+
+                        this.kpiMissionChart.data.datasets[0].data = this.missionOptions.map(m => missionKpiCount[m]);
+                        this.kpiMissionChart.update();
+                    }
+
+                    if (this.projectBarChart) {
+                        const labels = this.paginatedProjects.map(p => p.name.length > 20 ? p.name.substring(0, 20) + '...' : p.name);
+                        const allocatedData = this.paginatedProjects.map(p => p.allocated);
+                        const spentData = this.paginatedProjects.map(p => p.spent);
+
+                        this.projectBarChart.data.labels = labels;
+                        this.projectBarChart.data.datasets[0].data = allocatedData;
+                        this.projectBarChart.data.datasets[1].data = spentData;
+                        this.projectBarChart.update();
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCNKK - AUN-QA Assessment Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans Thai"', 'sans-serif'],
+                    },
+                    colors: {
+                        bcnkk: {
+                            navy: '#0f274a',    // สีน้ำเงินกรมท่า BCNKK
+                            gold: '#d4af37',    // สีทอง
+                            orange: '#e85d04',  // สีส้ม
+                            light: '#f8fafc',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f0f4f8; }
+        .glass-panel {
+            background: #ffffff;
+            border-top: 4px solid #0f274a;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 0.5rem;
+        }
+        .loader {
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #0f274a;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Custom Scrollbar for Interactive Table and Chart */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <header class="bg-bcnkk-navy text-white shadow-xl relative overflow-hidden">
+        <div class="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10">
+            <i class="fa-solid fa-award text-[15rem]"></i>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-bcnkk-navy shadow-lg">
+                        <i class="fa-solid fa-graduation-cap text-3xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-bcnkk-gold">BCNKK</h1>
+                        <h2 class="text-sm md:text-base font-medium opacity-90 mt-1">ผลการประเมินคุณภาพการศึกษา ระดับหลักสูตร เกณฑ์ AUN-QA ปีการศึกษา 2565-2568</h2>
+                        <p class="text-xs text-gray-300">วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- Loading State Indicator -->
+        <div id="loading" class="flex flex-col items-center justify-center py-32">
+            <div class="loader mb-6"></div>
+            <p class="text-bcnkk-navy font-bold text-xl">กำลังซิงค์ข้อมูลจากฐานข้อมูล...</p>
+            <p class="text-sm text-gray-500 mt-2">Connecting to Google Apps Script</p>
+        </div>
+
+        <!-- Dashboard Content Structure -->
+        <div id="dashboard-content" class="hidden space-y-8">
+            
+            <!-- KPI Cards Row -->
+            <div id="kpi-container" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                <!-- Cards injected via JS -->
+            </div>
+
+            <!-- Charts Row (Line Chart & Bar Chart) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+                
+                <!-- Chart 1: Line Chart (Overall Trend 2565-2568) -->
+                <div class="lg:col-span-5 glass-panel p-6">
+                    <div class="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                        <h3 class="text-lg font-bold text-bcnkk-navy flex items-center">
+                            <i class="fa-solid fa-chart-line mr-3 text-bcnkk-orange text-xl"></i>
+                            สรุปผลคะแนนประเมิน ระดับหลักสูตร เกณฑ์ AUN-QA ปีการศึกษา 2565-2568
+                        </h3>
+                    </div>
+                    <div class="relative h-[320px] w-full">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Grouped Bar Chart (53 Sub-indicators Scrollable) -->
+                <div class="lg:col-span-7 glass-panel p-6">
+                    <div class="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                        <h3 class="text-lg font-bold text-bcnkk-navy flex items-center">
+                            <i class="fa-solid fa-chart-bar mr-3 text-bcnkk-orange text-xl"></i>
+                            เปรียบเทียบผลคะแนนตัวชี้วัดย่อย 53 ตัวชี้วัด (Criteria 1-8) ปีการศึกษา 2565-2568
+                        </h3>
+                    </div>
+                    <!-- Horizontally scrollable wrapper to display 53 sub-indicators clearly -->
+                    <div class="overflow-x-auto pb-2">
+                        <div class="relative h-[320px]" style="min-width: 1500px;">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2 italic flex items-center gap-1">
+                        <i class="fa-solid fa-angles-left-right text-bcnkk-orange"></i> 
+                        เลื่อนเมาส์ในแนวนอนเพื่อตรวจสอบรหัสตัวชี้วัดย่อยทั้งหมด (ชี้ที่แท่งกราฟเพื่ออ่านคำอธิบายตัวย่อย)
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- AUN-QA Overall Verdict Scale Reference -->
+            <div class="glass-panel p-6 bg-white">
+                <div class="flex items-center mb-4 border-b border-gray-100 pb-3">
+                    <h3 class="text-lg font-bold text-bcnkk-navy flex items-center">
+                        <i class="fa-solid fa-circle-info mr-3 text-bcnkk-gold text-xl"></i>
+                        เกณฑ์ระดับคะแนนประเมินคุณภาพภาพรวม (AUN-QA Overall Verdict Rating Scale)
+                    </h3>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <div class="p-3 rounded-lg border border-red-200 bg-red-50/50 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-red-700 text-xs block mb-1">ระดับ 1</span>
+                            <span class="text-[11px] text-red-600 font-bold block mb-1">Absolutely Inadequate</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-red-100 pt-1 leading-normal">ไม่มีผลการดำเนินงานเลย</span>
+                    </div>
+                    <div class="p-3 rounded-lg border border-red-200 bg-red-50/40 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-red-500 text-xs block mb-1">ระดับ 2</span>
+                            <span class="text-[11px] text-red-700 font-bold block mb-1">Inadequate and improvement is necessary</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-red-100 pt-1 leading-normal">การดำเนินงานไม่เพียงพอ จำเป็นต้องปรับปรุงเร่งด่วน</span>
+                    </div>
+                    <div class="p-3 rounded-lg border border-orange-200 bg-orange-50/40 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-bcnkk-orange text-xs block mb-1">ระดับ 3</span>
+                            <span class="text-[11px] text-orange-700 font-bold block mb-1">Inadequate but Minor Improvement Will Make It Adequate</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-orange-100 pt-1 leading-normal">ไม่เพียงพอแต่ปรับปรุงเล็กน้อยก็เพียงพอระดับมาตรฐานได้</span>
+                    </div>
+                    <div class="p-3 rounded-lg border border-green-200 bg-green-50/50 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-green-600 text-xs block mb-1">ระดับ 4</span>
+                            <span class="text-[11px] text-green-700 font-bold block mb-1">Adequate as Expected</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-green-100 pt-1 leading-normal">การดำเนินงานเพียงพอเป็นไปตามมาตรฐานการศึกษาทั่วไป</span>
+                    </div>
+                    <div class="p-3 rounded-lg border border-teal-200 bg-teal-50/50 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-teal-600 text-xs block mb-1">ระดับ 5</span>
+                            <span class="text-[11px] text-teal-700 font-bold block mb-1">Better Than Adequate</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-teal-100 pt-1 leading-normal">ผลการดำเนินงานดีกว่าเกณฑ์ที่คาดหวังทั่วไป</span>
+                    </div>
+                    <div class="p-3 rounded-lg border border-blue-200 bg-blue-50/50 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-blue-600 text-xs block mb-1">ระดับ 6</span>
+                            <span class="text-[11px] text-blue-700 font-bold block mb-1">Example of Best Practices</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-blue-100 pt-1 leading-normal">โดดเด่นมาก เป็นตัวอย่างการปฏิบัติงานที่ดีที่สุดในสถาบัน</span>
+                    </div>
+                    <div class="p-3 rounded-lg border border-bcnkk-navy/20 bg-indigo-50/50 flex flex-col justify-between h-full">
+                        <div>
+                            <span class="font-extrabold text-bcnkk-navy text-xs block mb-1">ระดับ 7</span>
+                            <span class="text-[11px] text-indigo-900 font-bold block mb-1">Excellent Example of World-class or Leading Practices</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 mt-2 border-t border-indigo-100 pt-1 leading-normal">ยอดเยี่ยม เป็นต้นแบบการเรียนรู้ระดับนานาชาติหรือชั้นนำ</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel overflow-hidden mt-4">
+                <div class="px-6 py-5 bg-bcnkk-navy flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fa-solid fa-table-list mr-3 text-bcnkk-gold"></i>
+                        ผลคะแนนประเมินตามเกณฑ์ AUN-QA ปีการศึกษา 2565-2568
+                    </h3>
+                </div>
+                <div class="overflow-x-auto max-h-[600px]">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 text-left text-sm font-bold text-bcnkk-navy uppercase tracking-wider w-1/2">
+                                    เกณฑ์การประเมิน (Requirements)
+                                </th>
+                                <th scope="col" class="px-4 py-4 text-center text-sm font-bold text-bcnkk-navy uppercase tracking-wider year-col-0">ปี 1</th>
+                                <th scope="col" class="px-4 py-4 text-center text-sm font-bold text-bcnkk-navy uppercase tracking-wider year-col-1">ปี 2</th>
+                                <th scope="col" class="px-4 py-4 text-center text-sm font-bold text-bcnkk-navy uppercase tracking-wider year-col-2">ปี 3</th>
+                                <th scope="col" class="px-4 py-4 text-center text-sm font-bold text-bcnkk-navy uppercase tracking-wider bg-yellow-50 year-col-3">ปี 4</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                            <!-- Table rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <footer class="bg-bcnkk-navy border-t border-white/10 py-6 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-400">
+            &copy; 2026 วิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น (BCNKK). Data linked via Google Apps Script.
+        </div>
+    </footer>
+
+    <script>
+        // URL ของ Web App GAS (เชื่อมข้อมูลจาก Google Sheets เท่านั้น)
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxfPym6TfiqHdg3se4eiXnmWQyM12C3SJjUC8HxP-UKZvv7igO4nPv0_kqE2OECQ3LU_w/exec";
+        
+        let charts = {};
+
+        // ฟังก์ชันช่วยวิเคราะห์และจับคู่ชื่อเกณฑ์ประเมิน Overall Verdict 1-7
+        function getVerdictText(score) {
+            if (!score) return "N/A";
+            const val = Math.round(score);
+            switch(val) {
+                case 1: return "ระดับ 1: Absolutely Inadequate";
+                case 2: return "ระดับ 2: Inadequate and improvement is necessary";
+                case 3: return "ระดับ 3: Inadequate but Minor Improvement Will Make It Adequate";
+                case 4: return "ระดับ 4: Adequate as Expected";
+                case 5: return "ระดับ 5: Better Than Adequate";
+                case 6: return "ระดับ 6: Example of Best Practices";
+                case 7: return "ระดับ 7: Excellent Example of World-class or Leading Practices";
+                default: return `ระดับ ${score}: ระดับคะแนนทั่วไป`;
+            }
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch(GAS_URL);
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const responseData = await response.json();
+                
+                let actualData = [];
+                if (Array.isArray(responseData)) {
+                    actualData = responseData;
+                } else if (responseData && responseData.data) {
+                    actualData = responseData.data;
+                }
+
+                if (actualData && actualData.length > 0) {
+                    processData(actualData);
+                } else {
+                    throw new Error("ไม่พบข้อมูลใน Google Sheets หรือข้อมูลว่างเปล่า");
+                }
+            } catch (error) {
+                console.error("API Fetch failed:", error);
+                const loadingDiv = document.getElementById('loading');
+                loadingDiv.innerHTML = `
+                    <div class="text-red-500 mb-4"><i class="fa-solid fa-triangle-exclamation text-6xl"></i></div>
+                    <p class="text-red-600 font-bold text-xl">ไม่สามารถดึงข้อมูลจาก Google Sheets ได้</p>
+                    <p class="text-sm text-gray-500 mt-2 text-center max-w-md">โปรดตรวจสอบ Web App URL หรือสิทธิ์การเข้าถึง (CORS) ใน Google Apps Script</p>
+                    <div class="mt-4 bg-red-50 text-red-600 text-xs p-4 rounded border border-red-200 w-full max-w-xl break-words font-mono">
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function processData(rawData) {
+            let years = ['2565', '2566', '2567', '2568'];
+            let criteriaScores = [];
+            let finalOverall = [0, 0, 0, 0];
+            let detailedRows = [];
+
+            // ค้นหาปีการศึกษาจากหัวตาราง
+            for (let i = 0; i < Math.min(10, rawData.length); i++) {
+                let cellValue = String(rawData[i][1] || '');
+                if (cellValue.includes('2565')) {
+                    years = [rawData[i][1], rawData[i][2], rawData[i][3], rawData[i][4]];
+                    break;
+                }
+            }
+
+            // สกัดและจัดระเบียบข้อมูลรายข้อกำหนด
+            rawData.forEach(row => {
+                let reqName = String(row[0] || '').trim();
+                let v1 = String(row[1] || '');
+                let v2 = String(row[2] || '');
+                let v3 = String(row[3] || '');
+                let v4 = String(row[4] || '');
+
+                const parseScore = (val) => {
+                    if (!val) return null;
+                    let match = val.match(/^\d+(\.\d+)?/);
+                    return match ? parseFloat(match[0]) : null;
+                };
+
+                let s1 = parseScore(v1);
+                let s2 = parseScore(v2);
+                let s3 = parseScore(v3);
+                let s4 = parseScore(v4);
+
+                if (reqName.startsWith("Overall Verdict for Criterion")) {
+                    let critMatch = reqName.match(/\d+/);
+                    let critNum = critMatch ? critMatch[0] : criteriaScores.length + 1;
+                    criteriaScores.push({
+                        label: `Cri ${critNum}`,
+                        scores: [s1, s2, s3, s4]
+                    });
+                } else if (reqName === "Overall Verdict") {
+                    finalOverall = [s1, s2, s3, s4];
+                }
+
+                if (reqName && !reqName.startsWith("ผลการประเมิน") && reqName !== "Requirements" && row[0] !== "") {
+                    let rowType = 'normal';
+                    if (reqName.startsWith("AUN-QA Criterion")) rowType = 'header';
+                    else if (reqName.startsWith("Overall")) rowType = 'summary';
+
+                    detailedRows.push({
+                        req: reqName, type: rowType,
+                        raw1: v1, raw2: v2, raw3: v3, raw4: v4,
+                        s1, s2, s3, s4
+                    });
+                }
+            });
+
+            // ป้องกันกรณีไม่พบแถว Overall ด้วยการหาค่าเฉลี่ย
+            if (finalOverall[0] === 0 && finalOverall[3] === 0 && criteriaScores.length > 0) {
+                for (let y = 0; y < 4; y++) {
+                    let sum = 0, count = 0;
+                    criteriaScores.forEach(c => { if(c.scores[y]){ sum+=c.scores[y]; count++; } });
+                    finalOverall[y] = count > 0 ? parseFloat((sum/count).toFixed(2)) : 0;
+                }
+            }
+
+            renderDashboard(years, criteriaScores, finalOverall, detailedRows);
+        }
+
+        function getScoreColorClass(score) {
+            if (!score) return 'text-gray-400';
+            if (score >= 5) return 'text-green-600 font-bold';
+            if (score >= 4) return 'text-bcnkk-navy font-bold';
+            if (score >= 3) return 'text-bcnkk-orange font-semibold';
+            return 'text-red-500 font-semibold';
+        }
+
+        function renderDashboard(years, criteriaScores, finalOverall, detailedRows) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden');
+
+            // 1. Render KPI Summary Cards with dynamic Rating Scale text
+            const kpiContainer = document.getElementById('kpi-container');
+            kpiContainer.innerHTML = '';
+            
+            years.forEach((year, index) => {
+                let score = finalOverall[index];
+                let isLatest = index === years.length - 1;
+                let ratingText = getVerdictText(score);
+                
+                let cardHTML = `
+                    <div class="bg-white rounded-xl shadow-md border-t-4 ${isLatest ? 'border-bcnkk-gold ring-2 ring-bcnkk-gold/20' : 'border-bcnkk-navy'} p-5 relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+                        ${isLatest ? '<div class="absolute right-0 top-0 w-16 h-16 bg-gradient-to-bl from-bcnkk-gold/20 to-transparent rounded-bl-full"></div>' : ''}
+                        <div>
+                            <h4 class="text-gray-500 text-[11px] md:text-xs font-bold uppercase tracking-wider mb-1">ปีการศึกษา ${year}</h4>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-3xl md:text-4xl font-extrabold ${isLatest ? 'text-bcnkk-navy' : 'text-gray-800'}">${score || '-'}</span>
+                                <span class="text-gray-400 text-xs md:text-sm font-medium">/ 7</span>
+                            </div>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-gray-100">
+                            <p class="text-[10px] md:text-[11px] font-bold text-gray-500 block">ผลการประเมิน:</p>
+                            <p class="text-[10px] md:text-[11px] font-semibold leading-tight text-bcnkk-orange truncate" title="${ratingText}">${ratingText}</p>
+                        </div>
+                    </div>
+                `;
+                kpiContainer.insertAdjacentHTML('beforeend', cardHTML);
+                document.querySelectorAll(`.year-col-${index}`).forEach(el => el.textContent = `ปี ${year}`);
+            });
+
+            // 2. Chart 1: Single Line Chart (Overall Trend 2565-2568)
+            if (charts.line) charts.line.destroy();
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            charts.line = new Chart(ctxLine, {
+                type: 'line',
+                data: { 
+                    labels: years.map(y => `ปีการศึกษา ${y}`),
+                    datasets: [{
+                        label: `คะแนนประเมินภาพรวม (Overall)`,
+                        data: finalOverall,
+                        borderColor: '#0f274a', // bcnkk-navy
+                        backgroundColor: 'rgba(15, 39, 74, 0.05)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#d4af37', // bcnkk-gold
+                        pointBorderColor: '#0f274a',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        fill: true,
+                        tension: 0.3
+                    }] 
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { min: 0, max: 7, ticks: { stepSize: 1 } } },
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }
+                }
+            });
+
+            // 3. Chart 2: Grouped Bar Chart (53 Sub-indicators Scrollable)
+            const subIndicators = detailedRows.filter(row => row.type === 'normal');
+            
+            // สกัดป้ายแกน X สั้นๆ
+            const subLabels = subIndicators.map(row => {
+                const match = row.req.match(/^(\d+\.\d+)/);
+                return match ? match[1] : row.req.substring(0, 5);
+            });
+
+            const barColors = [
+                { bg: 'rgba(148, 163, 184, 0.4)', border: '#94a3b8' }, // 2565
+                { bg: 'rgba(232, 93, 4, 0.5)',   border: '#e85d04' }, // 2566
+                { bg: 'rgba(59, 130, 246, 0.6)',  border: '#3b82f6' }, // 2567
+                { bg: 'rgba(15, 39, 74, 0.95)',   border: '#0f274a' }  // 2568
+            ];
+
+            let barDatasets = years.map((year, yearIndex) => {
+                return {
+                    label: `ปี ${year}`,
+                    data: subIndicators.map(row => {
+                        if (yearIndex === 0) return row.s1;
+                        if (yearIndex === 1) return row.s2;
+                        if (yearIndex === 2) return row.s3;
+                        return row.s4;
+                    }),
+                    backgroundColor: barColors[yearIndex].bg,
+                    borderColor: barColors[yearIndex].border,
+                    borderWidth: 1,
+                    borderRadius: 2
+                };
+            });
+
+            if (charts.bar) charts.bar.destroy();
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            charts.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: { 
+                    labels: subLabels, 
+                    datasets: barDatasets
+                },
+                options: {
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { min: 0, max: 7, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { 
+                        legend: { position: 'top' }, 
+                        tooltip: { 
+                            mode: 'index', 
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    const index = context[0].dataIndex;
+                                    return subIndicators[index].req; // แสดงหัวข้อเต็มใน tooltip
+                                }
+                            }
+                        } 
+                    }
+                }
+            });
+
+            // 4. Render Table Grid
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            
+            detailedRows.forEach(row => {
+                let tr = document.createElement('tr');
+                let cellClasses = "px-4 py-3 whitespace-normal";
+                let textClass = "text-gray-800";
+                
+                if (row.type === 'header') {
+                    tr.className = "bg-bcnkk-navy text-white font-bold";
+                    textClass = "text-white";
+                } else if (row.type === 'summary') {
+                    tr.className = "bg-yellow-50 font-bold border-y-2 border-yellow-200";
+                    textClass = "text-bcnkk-navy";
+                } else {
+                    tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
+                }
+
+                const renderScoreCell = (score, isLatest) => {
+                    if (row.type === 'header') return `<td class="px-4 py-2"></td>`;
+                    let bgClass = isLatest && row.type !== 'summary' ? 'bg-yellow-50/50' : '';
+                    let colorClass = row.type === 'summary' ? 'text-bcnkk-navy' : getScoreColorClass(score);
+                    return `<td class="${cellClasses} text-center font-medium ${colorClass} ${bgClass}">${score || '-'}</td>`;
+                };
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-normal ${textClass}">${row.req}</td>
+                    ${renderScoreCell(row.s1, false)}
+                    ${renderScoreCell(row.s2, false)}
+                    ${renderScoreCell(row.s3, false)}
+                    ${renderScoreCell(row.s4, true)}
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // โหลดข้อมูลจาก Google Sheets เสมอเมื่อเปิดหน้าเว็บ
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+</body>
+</html>

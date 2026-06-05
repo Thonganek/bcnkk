@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Test-Path \"c:\\\\Users\\\\ACE\\\\Downloads\\\\BCNKK\\\\work\\\\01_administration\\\\finance-budget\\\\finance-budget.html\")"
+    ]
+  }
+}
