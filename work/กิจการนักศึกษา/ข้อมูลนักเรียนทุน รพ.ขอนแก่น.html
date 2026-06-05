@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบฐานข้อมูลนักศึกษาทุนโรงพยาบาลขอนแก่น</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --ink: #172033;
+            --muted: #6b7280;
+            --blue: #2563eb;
+            --cyan: #06b6d4;
+            --pink: #ec4899;
+            --orange: #f97316;
+            --green: #10b981;
+            --violet: #8b5cf6;
+            --surface: rgba(255, 255, 255, 0.88);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ink);
+            font-family: 'Sarabun', sans-serif;
+            background:
+                radial-gradient(circle at 8% 8%, rgba(236, 72, 153, 0.22), transparent 28%),
+                radial-gradient(circle at 92% 4%, rgba(6, 182, 212, 0.2), transparent 26%),
+                linear-gradient(135deg, #eff6ff 0%, #fdf2f8 45%, #ecfeff 100%);
+        }
+
+        .app-shell {
+            width: min(1220px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 28px 0 44px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 24px;
+            align-items: center;
+            min-height: 230px;
+            padding: 30px;
+            color: white;
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(5, 46, 22, 0.9), rgba(20, 83, 45, 0.86) 52%, rgba(6, 95, 70, 0.82)),
+                url("nursing-students-bg.png") center/cover;
+            box-shadow: 0 24px 70px rgba(5, 46, 22, 0.28);
+            overflow: hidden;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(1.7rem, 4vw, 3rem);
+            font-weight: 800;
+            line-height: 1.18;
+        }
+
+        .hero p {
+            max-width: 720px;
+            margin: 12px 0 0;
+            font-size: 1.08rem;
+            opacity: 0.94;
+        }
+
+        .top-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .college-logo {
+            display: grid;
+            place-items: center;
+            width: 156px;
+            height: 156px;
+            padding: 0;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .college-logo img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .status-pill,
+        .auth-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            padding: 8px 14px;
+            border: 1px solid rgba(255,255,255,0.32);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.18);
+            color: white;
+            backdrop-filter: blur(8px);
+            white-space: nowrap;
+        }
+
+        .btn-modern {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, var(--orange), var(--pink));
+            box-shadow: 0 14px 28px rgba(236, 72, 153, 0.25);
+        }
+
+        .btn-ghost {
+            color: white;
+            border: 1px solid rgba(255,255,255,0.42);
+            background: rgba(255,255,255,0.14);
+            box-shadow: none;
+        }
+
+        .section {
+            margin-top: 24px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .overview-grid .metric-grid {
+            margin: 0;
+            height: 100%;
+        }
+
+        .pie-panel {
+            min-height: 100%;
+            padding: 16px;
+        }
+
+        .pie-panel .panel-title {
+            margin-bottom: 8px;
+        }
+
+        .year-count-chart-container {
+            position: relative;
+            width: 100%;
+            height: 210px;
+        }
+
+        .metric-card,
+        .panel {
+            border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: 0 18px 48px rgba(31, 41, 55, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .metric-card {
+            position: relative;
+            min-height: 146px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .metric-card::after {
+            content: "";
+            position: absolute;
+            inset: auto -30px -40px auto;
+            width: 112px;
+            height: 112px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.13;
+        }
+
+        .metric-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .metric-card h2 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 800;
+        }
+
+        .metric-card p {
+            margin: 0;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .scholarship-total-card {
+            color: #1d4ed8;
+            background: linear-gradient(135deg, rgba(219, 234, 254, 0.98), rgba(147, 197, 253, 0.82));
+            border: 1px solid rgba(59, 130, 246, 0.28);
+            box-shadow: 0 18px 44px rgba(37, 99, 235, 0.18);
+        }
+
+        .scholarship-total-card p {
+            color: #1e3a8a;
+        }
+
+        .scholarship-total-card h2 {
+            color: #0f172a;
+        }
+
+        .student-pair-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .scholarship-total-card .student-pair-icon {
+            width: 58px;
+            height: 58px;
+            margin-bottom: 14px;
+            font-size: 1.55rem;
+        }
+
+        .student-pair-icon i:last-child {
+            font-size: 0.82em;
+            opacity: 0.86;
+            transform: translateY(2px);
+        }
+
+        .year-panel {
+            position: relative;
+            overflow: hidden;
+            padding: 14px;
+        }
+
+        .year-panel .panel-title h2 {
+            color: #064e3b;
+            font-size: 1rem;
+        }
+
+        .year-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.18;
+            pointer-events: none;
+        }
+
+        .year-panel.year-1 {
+            background: linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(187, 247, 208, 0.86));
+        }
+
+        .year-panel.year-2 {
+            background: linear-gradient(135deg, rgba(220, 252, 231, 0.96), rgba(134, 239, 172, 0.82));
+        }
+
+        .year-panel.year-3 {
+            background: linear-gradient(135deg, rgba(209, 250, 229, 0.96), rgba(74, 222, 128, 0.72));
+        }
+
+        .year-panel.year-4 {
+            background: linear-gradient(135deg, rgba(167, 243, 208, 0.96), rgba(20, 184, 166, 0.68));
+        }
+
+        .year-panel.year-1::before {
+            background: linear-gradient(90deg, #22c55e, transparent);
+        }
+
+        .year-panel.year-2::before {
+            background: linear-gradient(90deg, #16a34a, transparent);
+        }
+
+        .year-panel.year-3::before {
+            background: linear-gradient(90deg, #15803d, transparent);
+        }
+
+        .year-panel.year-4::before {
+            background: linear-gradient(90deg, #065f46, transparent);
+        }
+
+        .year-panel .metric-card {
+            min-height: 92px;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.76);
+            background: rgba(255,255,255,0.78);
+            box-shadow: 0 16px 34px rgba(5, 150, 105, 0.14);
+        }
+
+        .year-panel .metric-card::after {
+            width: 70px;
+            height: 70px;
+            inset: auto -22px -28px auto;
+        }
+
+        .year-panel .metric-grid {
+            gap: 10px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .year-panel .metric-card p {
+            color: #14532d;
+            font-size: 0.82rem;
+            line-height: 1.2;
+        }
+
+        .year-panel .metric-card h2 {
+            color: #052e16;
+            font-size: 1.45rem;
+        }
+
+        .year-panel .metric-icon {
+            width: 34px;
+            height: 34px;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            box-shadow: 0 10px 22px rgba(5, 150, 105, 0.24);
+        }
+
+        .year-panel.year-1 .metric-icon { background: linear-gradient(135deg, #16a34a, #86efac); }
+        .year-panel.year-2 .metric-icon { background: linear-gradient(135deg, #15803d, #4ade80); }
+        .year-panel.year-3 .metric-icon { background: linear-gradient(135deg, #166534, #22c55e); }
+        .year-panel.year-4 .metric-icon { background: linear-gradient(135deg, #064e3b, #14b8a6); }
+
+        .metric-blue { color: var(--blue); }
+        .metric-cyan { color: var(--cyan); }
+        .metric-green { color: var(--green); }
+        .metric-pink { color: var(--pink); }
+        .bg-blue { background: linear-gradient(135deg, var(--blue), var(--cyan)); }
+        .bg-green { background: linear-gradient(135deg, var(--green), #84cc16); }
+        .bg-orange { background: linear-gradient(135deg, var(--orange), #facc15); }
+        .bg-pink { background: linear-gradient(135deg, var(--pink), var(--violet)); }
+
+        .panel {
+            padding: 20px;
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .panel-title h2,
+        .panel-title h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+
+        .summary-table th {
+            color: #fff;
+            background: linear-gradient(135deg, #1d4ed8, #0891b2);
+            border: 0;
+        }
+
+        .summary-table td,
+        .summary-table th {
+            padding: 14px;
+            vertical-align: middle;
+        }
+
+        .year-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 6px;
+            overflow-x: auto;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.65);
+        }
+
+        .year-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 40px;
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: #334155;
+            font-weight: 800;
+            background: transparent;
+            white-space: nowrap;
+        }
+
+        .year-tab.active {
+            color: white;
+            background: linear-gradient(135deg, var(--blue), var(--pink));
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+        }
+
+        .table-wrap {
+            max-height: 520px;
+            overflow: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .student-table {
+            margin: 0;
+            min-width: 760px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .form-grid .wide {
+            grid-column: span 2;
+        }
+
+        .tools-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .import-preview {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .import-preview.show {
+            display: block;
+        }
+
+        .editable-input {
+            min-width: 100px;
+            border: 1px solid #dbe3ef;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #fff;
+        }
+
+        .save-status {
+            min-height: 24px;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .student-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            color: white;
+            border: 0;
+            background: #111827;
+        }
+
+        .gpa-good { color: #059669; font-weight: 800; }
+        .gpa-watch { color: #dc2626; font-weight: 800; }
+
+        .locked-panel {
+            display: grid;
+            place-items: center;
+            min-height: 280px;
+            text-align: center;
+            border: 1px dashed rgba(37, 99, 235, 0.35);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.64);
+        }
+
+        .locked-panel i {
+            font-size: 2.5rem;
+            color: var(--blue);
+            margin-bottom: 12px;
+        }
+
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: none;
+            place-items: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(8px);
+        }
+
+        .login-modal.show {
+            display: grid;
+        }
+
+        .login-card {
+            width: min(420px, 100%);
+            padding: 24px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+        }
+
+        .login-card h2 {
+            margin: 0 0 8px;
+            font-size: 1.45rem;
+            font-weight: 800;
+        }
+
+        .login-error {
+            display: none;
+            margin-top: 12px;
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
+        @media (max-width: 980px) {
+            .hero,
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .top-actions {
+                align-items: flex-start;
+            }
+            .college-logo {
+                width: 128px;
+                height: 128px;
+            }
+            .metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .overview-grid {
+                grid-template-columns: 1fr;
+            }
+            .year-panel .metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .form-grid .wide {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .app-shell {
+                width: min(100% - 20px, 1220px);
+                padding-top: 10px;
+            }
+            .hero,
+            .panel {
+                padding: 18px;
+            }
+            .college-logo {
+                width: 104px;
+                height: 104px;
+            }
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+            .year-panel .metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .form-grid,
+            .form-grid .wide {
+                grid-template-columns: 1fr;
+                grid-column: span 1;
+            }
+            .panel-title {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app-shell">
+        <section class="hero">
+            <div>
+                <h1>ระบบฐานข้อมูลนักศึกษาทุนโรงพยาบาลขอนแก่น</h1>
+                <p>ระบบแสดงข้อมูลนักศึกษาพยาบาลวิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น อัพเดทเมื่อวันที่ <span id="currentDateText"></span></p>
+            </div>
+            <div class="top-actions">
+                <div class="college-logo" aria-label="ตราวิทยาลัย">
+                    <img src="ตราวิทยาลัย-transparent.png" alt="ตราวิทยาลัยพยาบาลบรมราชชนนี ขอนแก่น">
+                </div>
+                <span id="connectionStatus" class="status-pill">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                    กำลังเชื่อมต่อ Google Sheets
+                </span>
+                <span id="authStatus" class="auth-pill" style="display:none;">
+                    <i class="fas fa-lock"></i>
+                    เข้าสู่ระบบแล้ว
+                </span>
+                <button id="loginButton" class="btn-modern" type="button">
+                    <i class="fas fa-right-to-bracket"></i>
+                    เข้าสู่ระบบ
+                </button>
+                <button id="logoutButton" class="btn-modern btn-ghost" type="button" style="display:none;">
+                    <i class="fas fa-right-from-bracket"></i>
+                    ออกจากระบบ
+                </button>
+            </div>
+        </section>
+
+        <section id="loading" class="section panel text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h2 class="h5 mt-3 mb-0 fw-bold text-muted">กำลังดึงข้อมูลสรุปจาก Google Sheets...</h2>
+        </section>
+
+        <section id="dashboardContent" style="display:none;">
+            <div class="section overview-grid">
+                <div class="metric-grid">
+                    <article class="metric-card metric-blue scholarship-total-card">
+                        <span class="metric-icon bg-blue student-pair-icon">
+                            <i class="fas fa-user-graduate"></i>
+                            <i class="fas fa-user-graduate"></i>
+                        </span>
+                        <p>จำนวนนักเรียนทุนทั้งหมด</p>
+                        <h2 id="totalStudents">0</h2>
+                    </article>
+                    <article class="metric-card metric-green">
+                        <span class="metric-icon bg-green"><i class="fas fa-star"></i></span>
+                        <p>เกรดเฉลี่ยรวม (GPA)</p>
+                        <h2 id="avgGpa">0.00</h2>
+                    </article>
+                </div>
+                <article class="panel pie-panel">
+                    <div class="panel-title">
+                        <h2><i class="fas fa-chart-bar text-success"></i> สรุปจำนวนนักศึกษาตามชั้นปี</h2>
+                    </div>
+                    <div class="year-count-chart-container">
+                        <canvas id="yearCountChart"></canvas>
+                    </div>
+                </article>
+            </div>
+
+            <section class="section panel year-panel year-1">
+                <div class="panel-title">
+                    <h2><i class="fas fa-user-graduate text-primary"></i> สรุปนักศึกษาชั้นปีที่ 1</h2>
+                </div>
+                <div class="metric-grid">
+                    <article class="metric-card metric-blue">
+                        <span class="metric-icon bg-blue"><i class="fas fa-users"></i></span>
+                        <p>จำนวนนักศึกษาปี 1</p>
+                        <h2 id="year1Count">0</h2>
+                    </article>
+                    <article class="metric-card metric-green">
+                        <span class="metric-icon bg-green"><i class="fas fa-star-half-stroke"></i></span>
+                        <p>เกรดเฉลี่ยปี 1</p>
+                        <h2 id="year1AvgGpa">0.00</h2>
+                    </article>
+                    <article class="metric-card metric-cyan">
+                        <span class="metric-icon bg-orange"><i class="fas fa-arrow-trend-up"></i></span>
+                        <p>GPA สูงสุดปี 1</p>
+                        <h2 id="year1MaxGpa">-</h2>
+                    </article>
+                    <article class="metric-card metric-pink">
+                        <span class="metric-icon bg-pink"><i class="fas fa-arrow-trend-down"></i></span>
+                        <p>GPA ต่ำสุดปี 1</p>
+                        <h2 id="year1MinGpa">-</h2>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section panel year-panel year-2">
+                <div class="panel-title">
+                    <h2><i class="fas fa-user-graduate text-primary"></i> สรุปนักศึกษาชั้นปีที่ 2</h2>
+                </div>
+                <div class="metric-grid">
+                    <article class="metric-card metric-blue">
+                        <span class="metric-icon bg-blue"><i class="fas fa-users"></i></span>
+                        <p>จำนวนนักศึกษาปี 2</p>
+                        <h2 id="year2Count">0</h2>
+                    </article>
+                    <article class="metric-card metric-green">
+                        <span class="metric-icon bg-green"><i class="fas fa-star-half-stroke"></i></span>
+                        <p>เกรดเฉลี่ยปี 2</p>
+                        <h2 id="year2AvgGpa">0.00</h2>
+                    </article>
+                    <article class="metric-card metric-cyan">
+                        <span class="metric-icon bg-orange"><i class="fas fa-arrow-trend-up"></i></span>
+                        <p>GPA สูงสุดปี 2</p>
+                        <h2 id="year2MaxGpa">-</h2>
+                    </article>
+                    <article class="metric-card metric-pink">
+                        <span class="metric-icon bg-pink"><i class="fas fa-arrow-trend-down"></i></span>
+                        <p>GPA ต่ำสุดปี 2</p>
+                        <h2 id="year2MinGpa">-</h2>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section panel year-panel year-3">
+                <div class="panel-title">
+                    <h2><i class="fas fa-user-graduate text-primary"></i> สรุปนักศึกษาชั้นปีที่ 3</h2>
+                </div>
+                <div class="metric-grid">
+                    <article class="metric-card metric-blue">
+                        <span class="metric-icon bg-blue"><i class="fas fa-users"></i></span>
+                        <p>จำนวนนักศึกษาปี 3</p>
+                        <h2 id="year3Count">0</h2>
+                    </article>
+                    <article class="metric-card metric-green">
+                        <span class="metric-icon bg-green"><i class="fas fa-star-half-stroke"></i></span>
+                        <p>เกรดเฉลี่ยปี 3</p>
+                        <h2 id="year3AvgGpa">0.00</h2>
+                    </article>
+                    <article class="metric-card metric-cyan">
+                        <span class="metric-icon bg-orange"><i class="fas fa-arrow-trend-up"></i></span>
+                        <p>GPA สูงสุดปี 3</p>
+                        <h2 id="year3MaxGpa">-</h2>
+                    </article>
+                    <article class="metric-card metric-pink">
+                        <span class="metric-icon bg-pink"><i class="fas fa-arrow-trend-down"></i></span>
+                        <p>GPA ต่ำสุดปี 3</p>
+                        <h2 id="year3MinGpa">-</h2>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section panel year-panel year-4">
+                <div class="panel-title">
+                    <h2><i class="fas fa-user-graduate text-primary"></i> สรุปนักศึกษาชั้นปีที่ 4</h2>
+                </div>
+                <div class="metric-grid">
+                    <article class="metric-card metric-blue">
+                        <span class="metric-icon bg-blue"><i class="fas fa-users"></i></span>
+                        <p>จำนวนนักศึกษาปี 4</p>
+                        <h2 id="year4Count">0</h2>
+                    </article>
+                    <article class="metric-card metric-green">
+                        <span class="metric-icon bg-green"><i class="fas fa-star-half-stroke"></i></span>
+                        <p>เกรดเฉลี่ยปี 4</p>
+                        <h2 id="year4AvgGpa">0.00</h2>
+                    </article>
+                    <article class="metric-card metric-cyan">
+                        <span class="metric-icon bg-orange"><i class="fas fa-arrow-trend-up"></i></span>
+                        <p>GPA สูงสุดปี 4</p>
+                        <h2 id="year4MaxGpa">-</h2>
+                    </article>
+                    <article class="metric-card metric-pink">
+                        <span class="metric-icon bg-pink"><i class="fas fa-arrow-trend-down"></i></span>
+                        <p>GPA ต่ำสุดปี 4</p>
+                        <h2 id="year4MinGpa">-</h2>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section panel">
+                <div class="panel-title">
+                    <h2><i class="fas fa-chart-line text-info"></i> กราฟสรุป GPA ของนักศึกษาแต่ละชั้นปี</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="gpaSummaryChart"></canvas>
+                </div>
+            </section>
+
+            <section class="section panel">
+                <div class="panel-title">
+                    <h2><i class="fas fa-table-list text-primary"></i> ตารางสรุปแต่ละชั้นปี</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover summary-table align-middle">
+                        <thead>
+                            <tr class="text-center">
+                                <th>ชั้นปี</th>
+                                <th>จำนวนนักเรียน</th>
+                                <th>GPA มากที่สุด</th>
+                                <th>GPA น้อยที่สุด</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="protectedSection" class="section panel" style="display:none;">
+                <div class="panel-title">
+                    <h2><i class="fas fa-id-card text-primary"></i> รายชื่อและผลการเรียนนักศึกษา</h2>
+                    <button id="detailLoginButton" class="btn-modern" type="button">
+                        <i class="fas fa-unlock-keyhole"></i>
+                        เข้าสู่ระบบเพื่อดูรายละเอียด
+                    </button>
+                </div>
+
+                <div id="lockedPanel" class="locked-panel">
+                    <div>
+                        <i class="fas fa-lock"></i>
+                        <h3 class="h5 fw-bold">ข้อมูลรายชื่อและ GPA รายคนถูกป้องกันไว้</h3>
+                        <p class="text-muted mb-0">เข้าสู่ระบบก่อน จึงจะแสดง tab รายชื่อแยกตามชั้นปีและผลการเรียนของนักศึกษา</p>
+                    </div>
+                </div>
+
+                <div id="detailPanel" style="display:none;">
+                    <div class="panel mb-3">
+                        <div class="panel-title">
+                            <h3><i class="fas fa-pen-to-square text-primary"></i> ฟอร์มเพิ่ม/แก้ไขข้อมูลนักเรียนทุน</h3>
+                        </div>
+                        <form id="studentForm" class="form-grid">
+                            <div>
+                                <label for="formNo" class="form-label fw-bold">ลำดับ</label>
+                                <input id="formNo" class="form-control" type="text" placeholder="เว้นว่างเพื่อเพิ่มลำดับใหม่">
+                            </div>
+                            <div class="wide">
+                                <label for="formName" class="form-label fw-bold">ชื่อ-สกุล</label>
+                                <input id="formName" class="form-control" type="text" required>
+                            </div>
+                            <div class="wide">
+                                <label for="formInstitution" class="form-label fw-bold">สถาบันการศึกษา</label>
+                                <input id="formInstitution" class="form-control" type="text" required>
+                            </div>
+                            <div>
+                                <label for="formYear" class="form-label fw-bold">ชั้นปี</label>
+                                <input id="formYear" class="form-control" type="number" min="1" step="1" required>
+                            </div>
+                            <div>
+                                <label for="formGpa" class="form-label fw-bold">GPA</label>
+                                <input id="formGpa" class="form-control" type="number" min="0" max="4" step="0.01" required>
+                            </div>
+                            <div class="d-flex align-items-end gap-2">
+                                <button class="btn-modern w-100" type="submit">
+                                    <i class="fas fa-floppy-disk"></i>
+                                    บันทึก
+                                </button>
+                            </div>
+                        </form>
+                        <div id="saveStatus" class="save-status mt-3"></div>
+                    </div>
+
+                    <div class="panel mb-3">
+                        <div class="panel-title">
+                            <h3><i class="fas fa-file-excel text-success"></i> นำเข้าไฟล์ Excel Template</h3>
+                        </div>
+                        <div class="tools-row">
+                            <button id="downloadTemplateButton" class="btn-modern" type="button">
+                                <i class="fas fa-download"></i>
+                                ดาวน์โหลด Template
+                            </button>
+                            <label class="btn-modern btn-ghost mb-0" for="excelInput">
+                                <i class="fas fa-file-import"></i>
+                                เลือกไฟล์ Excel
+                            </label>
+                            <input id="excelInput" type="file" accept=".xlsx,.xls" hidden>
+                            <button id="saveImportButton" class="btn-modern" type="button" style="display:none;">
+                                <i class="fas fa-cloud-arrow-up"></i>
+                                บันทึกข้อมูลนำเข้า
+                            </button>
+                        </div>
+                        <div id="importPreview" class="import-preview">
+                            <div class="table-wrap">
+                                <table class="table table-hover student-table align-middle">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>ลำดับ</th>
+                                            <th>ชื่อ-สกุล</th>
+                                            <th>สถาบันการศึกษา</th>
+                                            <th>ชั้นปี</th>
+                                            <th>GPA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="importPreviewBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="yearTabs" class="year-tabs mb-3"></div>
+                    <div class="table-wrap">
+                        <table class="table table-hover student-table align-middle">
+                            <thead>
+                                <tr class="text-center">
+                                    <th style="width: 90px;">ลำดับ</th>
+                                    <th>ชื่อ-สกุล</th>
+                                    <th>สถาบันการศึกษา</th>
+                                    <th style="width: 120px;">ชั้นปี</th>
+                                    <th style="width: 130px;">GPA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <div id="loginModal" class="login-modal" aria-hidden="true">
+        <form id="loginForm" class="login-card">
+            <h2><i class="fas fa-shield-halved text-primary"></i> เข้าสู่ระบบ</h2>
+            <p class="text-muted mb-3">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเปิดดูรายชื่อและผลการเรียนนักศึกษา</p>
+            <label for="usernameInput" class="form-label fw-bold">ชื่อผู้ใช้</label>
+            <input id="usernameInput" class="form-control form-control-lg mb-3" type="text" autocomplete="username" required>
+            <label for="passwordInput" class="form-label fw-bold">รหัสผ่าน</label>
+            <input id="passwordInput" class="form-control form-control-lg" type="password" autocomplete="current-password" required>
+            <div id="loginError" class="login-error">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้ deploy Apps Script เวอร์ชันล่าสุด</div>
+            <div class="d-flex gap-2 justify-content-end mt-4">
+                <button id="cancelLoginButton" class="btn btn-light fw-bold" type="button">ยกเลิก</button>
+                <button class="btn-modern" type="submit">
+                    <i class="fas fa-check"></i>
+                    ยืนยัน
+                </button>
+            </div>
+        </form>
+    </div>
+
+<script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzHi2kjfTGFqAkyS1SGDWIkIvgkw97BZ9GRoNytPyxsq4zoVnGUGFL84WmcmA2O17iD/exec';
+
+    const fieldAliases = {
+        no: ['ลำดับ', 'เลขที่', 'No', 'no', 'Number', 'number'],
+        name: ['ชื่อ-สกุล', 'ชื่อ สกุล', 'ชื่อ', 'ชื่อนักศึกษา', 'ชื่อนักเรียน', 'ชื่อผู้รับทุน', 'Name', 'name'],
+        institution: ['สถาบันการศึกษา', 'สถานศึกษา', 'วิทยาลัย', 'มหาวิทยาลัย', 'Institution', 'institution', 'School', 'school'],
+        year: ['ชั้นปี', 'ปี', 'ระดับชั้น', 'Year', 'year', 'Class', 'class'],
+        gpa: ['เกรดเฉลี่ย', 'GPA', 'gpa', 'เกรด', 'GPAX', 'gpax']
+    };
+    const TEMPLATE_HEADERS = ['ลำดับ', 'ชื่อ-สกุล', 'สถาบันการศึกษา', 'ชั้นปี', 'เกรดเฉลี่ย'];
+
+    let appState = {
+        authenticated: false,
+        username: '',
+        password: '',
+        rows: [],
+        importRows: [],
+        summary: null,
+        selectedYear: 'all'
+    };
+
+    let gpaSummaryChart;
+    let yearCountChart;
+
+    document.getElementById('loginButton').addEventListener('click', openLogin);
+    document.getElementById('detailLoginButton').addEventListener('click', openLogin);
+    document.getElementById('logoutButton').addEventListener('click', logout);
+    document.getElementById('cancelLoginButton').addEventListener('click', closeLogin);
+    document.getElementById('loginModal').addEventListener('click', function(event) {
+        if (event.target.id === 'loginModal') closeLogin();
+    });
+    document.getElementById('loginForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const username = document.getElementById('usernameInput').value.trim();
+        const password = document.getElementById('passwordInput').value.trim();
+        await loadData(username, password);
+    });
+    document.getElementById('studentForm').addEventListener('submit', submitStudentForm);
+    document.getElementById('downloadTemplateButton').addEventListener('click', downloadTemplate);
+    document.getElementById('excelInput').addEventListener('change', handleExcelImport);
+    document.getElementById('saveImportButton').addEventListener('click', saveImportedRows);
+
+    window.onload = function() {
+        setCurrentDateText();
+        loadData('', '');
+    };
+
+    function setCurrentDateText() {
+        const dateText = new Date().toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        document.getElementById('currentDateText').innerText = dateText;
+    }
+
+    async function loadData(username, password) {
+        setConnectionStatus('loading', password ? 'กำลังตรวจสอบสิทธิ์' : 'กำลังเชื่อมต่อ Google Sheets');
+        document.getElementById('loginError').classList.remove('show');
+
+        try {
+            const payload = await requestPayload(username, password);
+
+            if (payload.success === false) {
+                showError(payload.error || 'Apps Script ส่งข้อผิดพลาดกลับมา');
+                return;
+            }
+
+            appState.authenticated = payload.authenticated === true;
+            appState.username = appState.authenticated ? username : '';
+            appState.password = appState.authenticated ? password : '';
+            appState.rows = extractRows(payload);
+            appState.summary = payload.summary || buildSummary(appState.rows);
+
+            if (password && !appState.authenticated) {
+                document.getElementById('loginError').classList.add('show');
+                setConnectionStatus('success', 'เชื่อมต่อแล้ว: ' + (payload.sheetName || 'Google Sheets'));
+                renderApp();
+                return;
+            }
+
+            closeLogin();
+            setConnectionStatus('success', 'เชื่อมต่อแล้ว: ' + (payload.sheetName || 'Google Sheets'));
+            renderApp();
+        } catch (error) {
+            console.error(error);
+            showError('ไม่สามารถดึงข้อมูลจาก Google Sheets ได้ กรุณาตรวจสอบ Web App URL และสิทธิ์การเข้าถึง');
+        }
+    }
+
+    function extractRows(payload) {
+        const rows = Array.isArray(payload) ? payload : (payload.data || []);
+        return normalizeRows(rows);
+    }
+
+    function normalizeRows(rows) {
+        return rows.map(function(row, index) {
+            const normalized = {
+                no: readField(row, fieldAliases.no) || String(index + 1),
+                name: readField(row, fieldAliases.name),
+                institution: readField(row, fieldAliases.institution) || '-',
+                year: readField(row, fieldAliases.year),
+                gpa: readField(row, fieldAliases.gpa)
+            };
+
+            const year = parseNumber(normalized.year);
+            const gpa = parseNumber(normalized.gpa);
+
+            normalized.year = Number.isNaN(year) || year === 0 ? '' : String(year);
+            normalized.gpa = Number.isNaN(gpa) ? '' : gpa.toFixed(2);
+
+            return normalized;
+        }).filter(function(row) {
+            return row.name !== '';
+        });
+    }
+
+    function readField(row, aliases) {
+        for (const alias of aliases) {
+            if (Object.prototype.hasOwnProperty.call(row, alias)) {
+                const value = row[alias];
+                return value === null || value === undefined ? '' : String(value).trim();
+            }
+        }
+
+        const normalizedAliases = aliases.map(normalizeKey);
+        const matchedKey = Object.keys(row).find(function(key) {
+            return normalizedAliases.includes(normalizeKey(key));
+        });
+
+        if (!matchedKey) return '';
+
+        const value = row[matchedKey];
+        return value === null || value === undefined ? '' : String(value).trim();
+    }
+
+    function normalizeKey(value) {
+        return String(value || '').replace(/\s+/g, '').toLowerCase();
+    }
+
+    async function requestPayload(username, password) {
+        const params = username || password ? { username: username, password: password } : {};
+        try {
+            const response = await fetch(buildUrl(params), { cache: 'no-store' });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        } catch (error) {
+            return fetchJsonp(params);
+        }
+    }
+
+    function fetchJsonp(params) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'gsCallback_' + Date.now();
+            const script = document.createElement('script');
+
+            window[callbackName] = function(payload) {
+                cleanup();
+                resolve(payload);
+            };
+
+            script.onerror = function() {
+                cleanup();
+                reject(new Error('JSONP request failed'));
+            };
+
+            function cleanup() {
+                delete window[callbackName];
+                script.remove();
+            }
+
+            script.src = buildUrl(Object.assign({}, params, { callback: callbackName }));
+            document.body.appendChild(script);
+        });
+    }
+
+    function buildUrl(params) {
+        const url = new URL(GAS_URL);
+        Object.keys(params || {}).forEach(function(key) {
+            url.searchParams.set(key, params[key]);
+        });
+        url.searchParams.set('_', Date.now());
+        return url.toString();
+    }
+
+    async function submitStudentForm(event) {
+        event.preventDefault();
+        const row = {
+            no: document.getElementById('formNo').value.trim(),
+            name: document.getElementById('formName').value.trim(),
+            institution: document.getElementById('formInstitution').value.trim(),
+            year: document.getElementById('formYear').value.trim(),
+            gpa: document.getElementById('formGpa').value.trim()
+        };
+
+        if (!row.name || !row.institution || !row.year || !row.gpa) {
+            setSaveStatus('กรุณากรอกข้อมูลให้ครบถ้วน', true);
+            return;
+        }
+
+        try {
+            setSaveStatus('กำลังบันทึกข้อมูล...');
+            const payload = await saveRows([row]);
+            applySavePayload(payload);
+            document.getElementById('studentForm').reset();
+            setSaveStatus('บันทึกสำเร็จ: เพิ่มใหม่ ' + payload.appended + ' รายการ, อัปเดต ' + payload.updated + ' รายการ');
+        } catch (error) {
+            console.error(error);
+            setSaveStatus(error.message || 'บันทึกข้อมูลไม่สำเร็จ', true);
+        }
+    }
+
+    function downloadTemplate() {
+        if (!window.XLSX) {
+            setSaveStatus('ไม่พบไลบรารี Excel กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', true);
+            return;
+        }
+
+        const sampleRows = [
+            TEMPLATE_HEADERS,
+            ['', 'ตัวอย่าง ชื่อสกุล', 'วิทยาลัยพยาบาล', 1, 3.25]
+        ];
+        const worksheet = XLSX.utils.aoa_to_sheet(sampleRows);
+        worksheet['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 28 }, { wch: 12 }, { wch: 12 }];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'ข้อมูลนักเรียนทุน');
+        XLSX.writeFile(workbook, 'template-ข้อมูลนักเรียนทุน.xlsx');
+    }
+
+    async function handleExcelImport(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        if (!window.XLSX) {
+            setSaveStatus('ไม่พบไลบรารี Excel กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', true);
+            return;
+        }
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rawRows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+            appState.importRows = normalizeRows(rawRows);
+
+            renderImportPreview();
+            setSaveStatus('นำเข้าไฟล์แล้ว ' + appState.importRows.length + ' รายการ สามารถแก้ไขในตาราง preview ก่อนบันทึกได้');
+        } catch (error) {
+            console.error(error);
+            setSaveStatus('อ่านไฟล์ Excel ไม่สำเร็จ กรุณาตรวจสอบรูปแบบไฟล์', true);
+        } finally {
+            event.target.value = '';
+        }
+    }
+
+    function renderImportPreview() {
+        const preview = document.getElementById('importPreview');
+        const saveButton = document.getElementById('saveImportButton');
+        const body = document.getElementById('importPreviewBody');
+
+        if (!appState.importRows.length) {
+            preview.classList.remove('show');
+            saveButton.style.display = 'none';
+            body.innerHTML = '';
+            return;
+        }
+
+        preview.classList.add('show');
+        saveButton.style.display = 'inline-flex';
+        body.innerHTML = appState.importRows.map(function(row, index) {
+            return `
+                <tr>
+                    <td><input class="editable-input" data-index="${index}" data-field="no" value="${escapeHtml(row.no || '')}"></td>
+                    <td><input class="editable-input" data-index="${index}" data-field="name" value="${escapeHtml(row.name || '')}"></td>
+                    <td><input class="editable-input" data-index="${index}" data-field="institution" value="${escapeHtml(row.institution || '')}"></td>
+                    <td><input class="editable-input" data-index="${index}" data-field="year" value="${escapeHtml(row.year || '')}"></td>
+                    <td><input class="editable-input" data-index="${index}" data-field="gpa" value="${escapeHtml(row.gpa || '')}"></td>
+                </tr>
+            `;
+        }).join('');
+
+        body.querySelectorAll('input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                const index = Number(input.dataset.index);
+                const field = input.dataset.field;
+                appState.importRows[index][field] = input.value.trim();
+            });
+        });
+    }
+
+    async function saveImportedRows() {
+        const validRows = normalizeRows(appState.importRows).filter(function(row) {
+            return row.name && row.institution && row.year && row.gpa;
+        });
+
+        if (!validRows.length) {
+            setSaveStatus('ไม่พบข้อมูลนำเข้าที่ครบถ้วนสำหรับบันทึก', true);
+            return;
+        }
+
+        try {
+            setSaveStatus('กำลังบันทึกข้อมูลนำเข้า ' + validRows.length + ' รายการ...');
+            const payload = await saveRows(validRows);
+            applySavePayload(payload);
+            appState.importRows = [];
+            renderImportPreview();
+            setSaveStatus('บันทึกข้อมูลนำเข้าสำเร็จ: เพิ่มใหม่ ' + payload.appended + ' รายการ, อัปเดต ' + payload.updated + ' รายการ');
+        } catch (error) {
+            console.error(error);
+            setSaveStatus(error.message || 'บันทึกข้อมูลนำเข้าไม่สำเร็จ', true);
+        }
+    }
+
+    async function saveRows(rows) {
+        if (!appState.authenticated || !appState.username || !appState.password) {
+            throw new Error('กรุณาเข้าสู่ระบบก่อนบันทึกข้อมูล');
+        }
+
+        const batches = chunkRows(rows, 15);
+        let latestPayload = null;
+        let appended = 0;
+        let updated = 0;
+        let skipped = 0;
+
+        for (const batch of batches) {
+            const payload = await fetchJsonp({
+                action: 'saveRows',
+                username: appState.username,
+                password: appState.password,
+                rows: JSON.stringify(batch)
+            });
+
+            if (payload.success === false) {
+                throw new Error(payload.error || 'บันทึกข้อมูลไม่สำเร็จ');
+            }
+
+            latestPayload = payload;
+            appended += Number(payload.appended || 0);
+            updated += Number(payload.updated || 0);
+            skipped += Number(payload.skipped || 0);
+        }
+
+        latestPayload.appended = appended;
+        latestPayload.updated = updated;
+        latestPayload.skipped = skipped;
+        return latestPayload;
+    }
+
+    function applySavePayload(payload) {
+        appState.rows = extractRows(payload);
+        appState.summary = payload.summary || buildSummary(appState.rows);
+        appState.selectedYear = 'all';
+        renderApp();
+    }
+
+    function chunkRows(rows, size) {
+        const chunks = [];
+        for (let index = 0; index < rows.length; index += size) {
+            chunks.push(rows.slice(index, index + size));
+        }
+        return chunks;
+    }
+
+    function setSaveStatus(message, isError) {
+        const status = document.getElementById('saveStatus');
+        status.textContent = message || '';
+        status.style.color = isError ? '#dc2626' : '';
+    }
+
+    function renderApp() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+        renderAuthState();
+        renderSummary();
+        renderYearCountChart();
+        renderGpaSummaryChart();
+        renderProtectedDetails();
+    }
+
+    function renderAuthState() {
+        const authStatus = document.getElementById('authStatus');
+        const loginButton = document.getElementById('loginButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const detailLoginButton = document.getElementById('detailLoginButton');
+
+        if (appState.authenticated) {
+            authStatus.innerHTML = '<i class="fas fa-unlock"></i> เข้าสู่ระบบแล้ว';
+            authStatus.style.display = 'inline-flex';
+            loginButton.style.display = 'none';
+            logoutButton.style.display = 'inline-flex';
+            detailLoginButton.style.display = 'none';
+        } else {
+            authStatus.innerHTML = '';
+            authStatus.style.display = 'none';
+            loginButton.style.display = 'inline-flex';
+            logoutButton.style.display = 'none';
+            detailLoginButton.style.display = 'inline-flex';
+        }
+    }
+
+    function renderSummary() {
+        const summary = appState.summary || buildSummary([]);
+        const byYear = normalizeYearSummary(summary.byYear || []);
+        const year1 = getYearSummary(1, byYear);
+        const year2 = getYearSummary(2, byYear);
+        const year3 = getYearSummary(3, byYear);
+        const year4 = getYearSummary(4, byYear);
+
+        document.getElementById('totalStudents').innerText = Number(summary.totalStudents || 0).toLocaleString('th-TH');
+        document.getElementById('avgGpa').innerText = summary.avgGpa ? Number(summary.avgGpa).toFixed(2) : '0.00';
+        document.getElementById('year1Count').innerText = Number(year1.count || 0).toLocaleString('th-TH');
+        document.getElementById('year1AvgGpa').innerText = formatGpa(year1.avgGpa);
+        document.getElementById('year1MaxGpa').innerText = formatGpa(year1.maxGpa);
+        document.getElementById('year1MinGpa').innerText = formatGpa(year1.minGpa);
+        document.getElementById('year2Count').innerText = Number(year2.count || 0).toLocaleString('th-TH');
+        document.getElementById('year2AvgGpa').innerText = formatGpa(year2.avgGpa);
+        document.getElementById('year2MaxGpa').innerText = formatGpa(year2.maxGpa);
+        document.getElementById('year2MinGpa').innerText = formatGpa(year2.minGpa);
+        document.getElementById('year3Count').innerText = Number(year3.count || 0).toLocaleString('th-TH');
+        document.getElementById('year3AvgGpa').innerText = formatGpa(year3.avgGpa);
+        document.getElementById('year3MaxGpa').innerText = formatGpa(year3.maxGpa);
+        document.getElementById('year3MinGpa').innerText = formatGpa(year3.minGpa);
+        document.getElementById('year4Count').innerText = Number(year4.count || 0).toLocaleString('th-TH');
+        document.getElementById('year4AvgGpa').innerText = formatGpa(year4.avgGpa);
+        document.getElementById('year4MaxGpa').innerText = formatGpa(year4.maxGpa);
+        document.getElementById('year4MinGpa').innerText = formatGpa(year4.minGpa);
+        document.getElementById('summaryBody').innerHTML = byYear.length
+            ? byYear.map(renderSummaryRow).join('')
+            : '<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูลสรุป</td></tr>';
+    }
+
+    function renderSummaryRow(item) {
+        const yearItem = getYearSummary(item.yearNumber || parseNumber(item.year), [item]);
+        return `
+            <tr class="text-center">
+                <td class="fw-bold">${escapeHtml(yearItem.year)}</td>
+                <td>${Number(yearItem.count || 0).toLocaleString('th-TH')}</td>
+                <td class="gpa-good">${formatGpa(yearItem.maxGpa)}</td>
+                <td class="gpa-watch">${formatGpa(yearItem.minGpa)}</td>
+            </tr>
+        `;
+    }
+
+    function formatGpa(value) {
+        const gpa = Number(value);
+        return Number.isNaN(gpa) || gpa <= 0 ? '-' : gpa.toFixed(2);
+    }
+
+    function normalizeYearSummary(byYear) {
+        const byYearNumber = {};
+
+        (byYear || []).forEach(function(item) {
+            const yearNumber = Number(item.yearNumber || parseNumber(item.year));
+            if (!Number.isNaN(yearNumber) && yearNumber >= 1 && yearNumber <= 4) {
+                byYearNumber[yearNumber] = item;
+            }
+        });
+
+        return [1, 2, 3, 4].map(function(yearNumber) {
+            const item = byYearNumber[yearNumber] || {};
+            return {
+                year: 'ปี ' + yearNumber,
+                yearNumber: yearNumber,
+                count: Number(item.count || 0),
+                avgGpa: Number(item.avgGpa || 0),
+                maxGpa: Number(item.maxGpa || 0),
+                minGpa: Number(item.minGpa || 0),
+                gpaCount: Number(item.gpaCount || 0)
+            };
+        });
+    }
+
+    function getYearSummary(yearNumber, byYear) {
+        const item = (byYear || []).find(function(yearItem) {
+            return Number(yearItem.yearNumber) === Number(yearNumber);
+        });
+
+        if (item && (item.count || item.maxGpa || item.minGpa || item.avgGpa)) {
+            return item;
+        }
+
+        const rows = (appState.rows || []).filter(function(row) {
+            return parseNumber(row.year) === Number(yearNumber);
+        });
+
+        if (!rows.length) {
+            return {
+                year: 'ปี ' + yearNumber,
+                yearNumber: yearNumber,
+                count: 0,
+                avgGpa: 0,
+                maxGpa: 0,
+                minGpa: 0
+            };
+        }
+
+        const gpas = rows
+            .map(function(row) { return parseNumber(row.gpa); })
+            .filter(function(gpa) { return !Number.isNaN(gpa) && gpa > 0; });
+
+        return {
+            year: 'ปี ' + yearNumber,
+            yearNumber: yearNumber,
+            count: rows.length,
+            avgGpa: gpas.length ? gpas.reduce(function(sum, gpa) { return sum + gpa; }, 0) / gpas.length : 0,
+            maxGpa: gpas.length ? Math.max.apply(null, gpas) : 0,
+            minGpa: gpas.length ? Math.min.apply(null, gpas) : 0
+        };
+    }
+
+    function renderGpaSummaryChart() {
+        const summary = appState.summary || buildSummary([]);
+        const yearItems = normalizeYearSummary(summary.byYear || []);
+        const canvas = document.getElementById('gpaSummaryChart');
+
+        if (!canvas || !window.Chart) return;
+        if (gpaSummaryChart) gpaSummaryChart.destroy();
+
+        gpaSummaryChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: yearItems.map(function(item) { return item.year; }),
+                datasets: [
+                    {
+                        label: 'เกรดเฉลี่ย',
+                        data: yearItems.map(function(item) { return Number(item.avgGpa || 0); }),
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                        pointBackgroundColor: '#2563eb',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        tension: 0.35,
+                        fill: true
+                    },
+                    {
+                        label: 'GPA สูงสุด',
+                        data: yearItems.map(function(item) { return Number(item.maxGpa || 0); }),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        tension: 0.35,
+                        fill: false
+                    },
+                    {
+                        label: 'GPA ต่ำสุด',
+                        data: yearItems.map(function(item) { return Number(item.minGpa || 0); }),
+                        borderColor: '#ec4899',
+                        backgroundColor: 'rgba(236, 72, 153, 0.08)',
+                        pointBackgroundColor: '#ec4899',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        tension: 0.35,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 4,
+                        ticks: { stepSize: 0.5 }
+                    }
+                },
+                plugins: {
+                    legend: { display: true, position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + Number(context.parsed.y || 0).toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderYearCountChart() {
+        const summary = appState.summary || buildSummary([]);
+        const yearItems = normalizeYearSummary(summary.byYear || []);
+        const canvas = document.getElementById('yearCountChart');
+
+        if (!canvas || !window.Chart) return;
+        if (yearCountChart) yearCountChart.destroy();
+
+        yearCountChart = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: yearItems.map(function(item) { return item.year; }),
+                datasets: [{
+                    label: 'จำนวนนักศึกษา',
+                    data: yearItems.map(function(item) { return Number(item.count || 0); }),
+                    backgroundColor: ['#93c5fd', '#60a5fa', '#2563eb', '#1e3a8a'],
+                    borderRadius: 8,
+                    barThickness: 24
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'จำนวนนักศึกษา',
+                            color: '#1e3a8a',
+                            font: { weight: 'bold' }
+                        },
+                        ticks: { precision: 0 }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'ชั้นปี',
+                            color: '#14532d',
+                            font: { weight: 'bold' }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = Number(context.parsed.x || 0);
+                                return 'จำนวนนักศึกษา: ' + value.toLocaleString('th-TH') + ' คน';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderProtectedDetails() {
+        const protectedSection = document.getElementById('protectedSection');
+        const lockedPanel = document.getElementById('lockedPanel');
+        const detailPanel = document.getElementById('detailPanel');
+
+        if (!appState.authenticated) {
+            protectedSection.style.display = 'none';
+            lockedPanel.style.display = 'none';
+            detailPanel.style.display = 'none';
+            return;
+        }
+
+        protectedSection.style.display = 'block';
+        lockedPanel.style.display = 'none';
+        detailPanel.style.display = 'block';
+        renderYearTabs();
+        renderStudentTable();
+    }
+
+    function renderYearTabs() {
+        const years = getYearsFromRows(appState.rows);
+        if (!years.includes(appState.selectedYear)) {
+            appState.selectedYear = 'all';
+        }
+
+        const tabs = [{ key: 'all', label: 'ทั้งหมด', count: appState.rows.length }].concat(
+            years.map(function(year) {
+                return {
+                    key: year,
+                    label: year === 'ไม่ระบุ' ? year : 'ปี ' + year,
+                    count: appState.rows.filter(function(row) { return getYearKey(row.year) === year; }).length
+                };
+            })
+        );
+
+        document.getElementById('yearTabs').innerHTML = tabs.map(function(tab) {
+            const active = appState.selectedYear === tab.key ? 'active' : '';
+            return `<button class="year-tab ${active}" type="button" data-year="${escapeHtml(tab.key)}">
+                ${escapeHtml(tab.label)}
+                <span class="badge text-bg-light">${tab.count}</span>
+            </button>`;
+        }).join('');
+
+        document.querySelectorAll('.year-tab').forEach(function(button) {
+            button.addEventListener('click', function() {
+                appState.selectedYear = button.dataset.year;
+                renderYearTabs();
+                renderStudentTable();
+            });
+        });
+    }
+
+    function renderStudentTable() {
+        const rows = appState.selectedYear === 'all'
+            ? appState.rows
+            : appState.rows.filter(function(row) {
+                return getYearKey(row.year) === appState.selectedYear;
+            });
+        const sortedRows = rows.slice().sort(sortByGpaDesc);
+
+        document.getElementById('studentBody').innerHTML = sortedRows.length
+            ? sortedRows.map(renderStudentRow).join('')
+            : '<tr><td colspan="5" class="text-center text-muted py-4">ไม่พบข้อมูลในชั้นปีนี้</td></tr>';
+    }
+
+    function sortByGpaDesc(a, b) {
+        const gpaA = parseNumber(a.gpa);
+        const gpaB = parseNumber(b.gpa);
+
+        if (Number.isNaN(gpaA) && Number.isNaN(gpaB)) {
+            return String(a.name || '').localeCompare(String(b.name || ''), 'th');
+        }
+        if (Number.isNaN(gpaA)) return 1;
+        if (Number.isNaN(gpaB)) return -1;
+        if (gpaB !== gpaA) return gpaB - gpaA;
+
+        return String(a.name || '').localeCompare(String(b.name || ''), 'th');
+    }
+
+    function renderStudentRow(row) {
+        const gpa = parseNumber(row.gpa);
+        const gpaClass = !Number.isNaN(gpa) && gpa < 2.5 ? 'gpa-watch' : (!Number.isNaN(gpa) && gpa >= 3 ? 'gpa-good' : '');
+        return `
+            <tr class="text-center">
+                <td>${escapeHtml(row.no || '-')}</td>
+                <td class="text-start fw-bold">${escapeHtml(row.name || '-')}</td>
+                <td>${escapeHtml(row.institution || '-')}</td>
+                <td>${escapeHtml(row.year || '-')}</td>
+                <td class="${gpaClass}">${row.gpa ? escapeHtml(Number(row.gpa).toFixed(2)) : '-'}</td>
+            </tr>
+        `;
+    }
+
+    function buildSummary(rows) {
+        const byYearMap = {};
+        const institutionMap = {};
+        let totalGpa = 0;
+        let validGpaCount = 0;
+        let maxYear = 0;
+
+        rows.forEach(function(row) {
+            const year = parseNumber(row.year);
+            const yearKey = Number.isNaN(year) || year === 0 ? 'ไม่ระบุ' : 'ปี ' + year;
+            const gpa = parseNumber(row.gpa);
+
+            if (!byYearMap[yearKey]) {
+                byYearMap[yearKey] = {
+                    year: yearKey,
+                    yearNumber: Number.isNaN(year) ? 0 : year,
+                    count: 0,
+                    gpaTotal: 0,
+                    gpaCount: 0,
+                    maxGpa: null,
+                    minGpa: null,
+                    institutions: {}
+                };
+            }
+
+            byYearMap[yearKey].count++;
+            byYearMap[yearKey].institutions[row.institution] = (byYearMap[yearKey].institutions[row.institution] || 0) + 1;
+            institutionMap[row.institution] = (institutionMap[row.institution] || 0) + 1;
+
+            if (!Number.isNaN(gpa) && gpa > 0) {
+                byYearMap[yearKey].gpaTotal += gpa;
+                byYearMap[yearKey].gpaCount++;
+                byYearMap[yearKey].maxGpa = byYearMap[yearKey].maxGpa === null ? gpa : Math.max(byYearMap[yearKey].maxGpa, gpa);
+                byYearMap[yearKey].minGpa = byYearMap[yearKey].minGpa === null ? gpa : Math.min(byYearMap[yearKey].minGpa, gpa);
+                totalGpa += gpa;
+                validGpaCount++;
+            }
+
+            if (!Number.isNaN(year) && year > maxYear) maxYear = year;
+        });
+
+        return {
+            totalStudents: rows.length,
+            avgGpa: validGpaCount ? totalGpa / validGpaCount : 0,
+            totalInstitutions: Object.keys(institutionMap).length,
+            maxYear: maxYear,
+            institutions: institutionMap,
+            byYear: Object.keys(byYearMap).map(function(key) {
+                const item = byYearMap[key];
+                return {
+                    year: item.year,
+                    yearNumber: item.yearNumber,
+                    count: item.count,
+                    avgGpa: item.gpaCount ? item.gpaTotal / item.gpaCount : 0,
+                    maxGpa: item.maxGpa === null ? 0 : item.maxGpa,
+                    minGpa: item.minGpa === null ? 0 : item.minGpa,
+                    gpaCount: item.gpaCount,
+                    institutions: item.institutions
+                };
+            }).sort(function(a, b) { return a.yearNumber - b.yearNumber; })
+        };
+    }
+
+    function getYearsFromRows(rows) {
+        return Array.from(new Set(rows.map(function(row) {
+            return getYearKey(row.year);
+        }))).sort(function(a, b) {
+            return parseNumber(a) - parseNumber(b);
+        });
+    }
+
+    function getYearKey(value) {
+        const year = parseNumber(value);
+        return Number.isNaN(year) || year === 0 ? 'ไม่ระบุ' : String(year);
+    }
+
+    function getTopInstitution(institutions) {
+        const keys = Object.keys(institutions);
+        if (!keys.length) return '-';
+        return keys.sort(function(a, b) {
+            return institutions[b] - institutions[a];
+        })[0];
+    }
+
+    function parseNumber(value) {
+        const cleaned = String(value || '').replace(',', '.').replace(/[^\d.-]/g, '');
+        return cleaned ? Number(cleaned) : NaN;
+    }
+
+    function openLogin() {
+        document.getElementById('loginModal').classList.add('show');
+        document.getElementById('loginModal').setAttribute('aria-hidden', 'false');
+        document.getElementById('usernameInput').focus();
+    }
+
+    function closeLogin() {
+        document.getElementById('loginModal').classList.remove('show');
+        document.getElementById('loginModal').setAttribute('aria-hidden', 'true');
+        document.getElementById('usernameInput').value = '';
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('loginError').classList.remove('show');
+    }
+
+    function logout() {
+        appState.authenticated = false;
+        appState.username = '';
+        appState.password = '';
+        appState.rows = [];
+        appState.selectedYear = 'all';
+        loadData('', '');
+    }
+
+    function showError(message) {
+        setConnectionStatus('error', 'เชื่อมต่อไม่สำเร็จ');
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('dashboardContent').style.display = 'none';
+        document.getElementById('loading').innerHTML = `
+            <div class="alert alert-danger mb-0" role="alert">
+                <i class="fas fa-exclamation-triangle fs-4 mb-2"></i><br>
+                <strong>${escapeHtml(message)}</strong><br>
+                หลังแก้ไข Apps Script ให้กด Deploy > Manage deployments > Edit > New version แล้วนำ Web app URL มาใส่ใน GAS_URL
+            </div>
+        `;
+    }
+
+    function setConnectionStatus(type, message) {
+        const status = document.getElementById('connectionStatus');
+        const icon = type === 'success'
+            ? 'fa-check-circle'
+            : (type === 'error' ? 'fa-times-circle' : 'fa-circle-notch fa-spin');
+        status.innerHTML = `<i class="fas ${icon}"></i>${escapeHtml(message)}`;
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, function(char) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char];
+        });
+    }
+</script>
+</body>
+</html>

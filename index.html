@@ -1613,7 +1613,7 @@
                             <a class="menu-link toggle-submenu">ผลลัพธ์หลักสูตร <i class="fa-solid fa-chevron-right arrow"></i></a>
                             <ul class="submenu submenu-level-3">
                                 <li><a href="#" class="menu-link">การบรรลุ PLO นักศึกษาชั้นปี 4</a></li>
-                                <li><a href="#" class="menu-link">อัตราการคงอยู่</a></li>
+                                <li><a href="work/05_academic/curriculum-outcomes/student-retention-dashboard.html" target="mainFrame" class="menu-link">อัตราการคงอยู่</a></li>
                                 <li><a href="#" class="menu-link">อัตราการสำเร็จ</a></li>
                                 <li><a href="#" class="menu-link">ผลสอบขึ้นทะเบียน</a></li>
                                 <li><a href="work/05_academic/comprehensive-exam/comprehensive-exam-dashboard.html" target="mainFrame" class="menu-link">สอบรวบยอด</a></li>
@@ -1647,7 +1647,7 @@
                         <li class="submenu-item">
                             <a class="menu-link toggle-submenu">งานพัฒนานักศึกษา <i class="fa-solid fa-chevron-right arrow"></i></a>
                             <ul class="submenu submenu-level-3">
-                                <li><a href="#" class="menu-link">งานพัฒนานักศึกษา</a></li>
+                                <li><a href="work/กิจการนักศึกษา/ข้อมูลนักเรียนทุน รพ.ขอนแก่น.html" target="mainFrame" class="menu-link">งานพัฒนานักศึกษา</a></li>
                                 <li><a class="menu-link toggle-submenu">ภาระงานนักศึกษา <i class="fa-solid fa-caret-down"></i></a>
                                     <ul class="submenu" style="padding-left:15px;">
                                         <li><a href="#" class="menu-link">- ปีการศึกษา 2567</a></li>
@@ -2107,7 +2107,7 @@
             function refreshAncestorHeights(submenu) {
                 let parent = submenu.parentElement ? submenu.parentElement.closest('.submenu.open') : null;
                 while (parent) {
-                    parent.style.maxHeight = parent.scrollHeight + 'px';
+                    parent.style.maxHeight = 'none';
                     parent = parent.parentElement ? parent.parentElement.closest('.submenu.open') : null;
                 }
             }
@@ -2116,7 +2116,7 @@
                 link.classList.toggle('active', isOpen);
                 link.setAttribute('aria-expanded', String(isOpen));
                 submenu.classList.toggle('open', isOpen);
-                submenu.style.maxHeight = isOpen ? submenu.scrollHeight + 'px' : '0px';
+                submenu.style.maxHeight = isOpen ? 'none' : '0px';
                 refreshAncestorHeights(submenu);
             }
 
@@ -2174,7 +2174,7 @@
                     setMobileMenuState(false);
                 }
                 document.querySelectorAll('.submenu.open').forEach(submenu => {
-                    submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                    submenu.style.maxHeight = 'none';
                 });
             });
 

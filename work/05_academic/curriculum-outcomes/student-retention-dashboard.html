@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ข้อมูลนักศึกษาพยาบาลศาสตร์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #0d9488; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #dashboard-content { display: none; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <nav class="bg-teal-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-xl text-white">อัตราการคงอยู่ของนักศึกษาหลักสูตรพยาบาลศาสตรบัณฑิต ปีการศึกษา 2568</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="loading" class="flex flex-col justify-center items-center h-screen -mt-16">
+        <div class="loader mb-4"></div>
+        <p class="text-teal-700 font-medium animate-pulse">กำลังดึงข้อมูล...</p>
+    </div>
+
+    <div id="dashboard-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-teal-500">
+                <div class="text-gray-500 text-sm">นักศึกษาทั้งหมด</div>
+                <div class="text-3xl font-bold text-gray-800" id="total-students">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-blue-500">
+                <div class="text-gray-500 text-sm">กำลังศึกษาอยู่</div>
+                <div class="text-3xl font-bold text-blue-600" id="active-students">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-green-500">
+                <div class="text-gray-500 text-sm">สำเร็จการศึกษา</div>
+                <div class="text-3xl font-bold text-green-600" id="graduated-students">0</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-amber-500">
+                <div class="text-gray-500 text-sm">สถานะอื่นๆ</div>
+                <div class="text-3xl font-bold text-amber-600" id="other-students">0</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <h3 class="text-lg font-bold text-gray-700 mb-4">สถานภาพนักศึกษา ปีการศึกษา 2568</h3>
+                <div class="relative h-64 w-full"><canvas id="statusChart"></canvas></div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <h3 class="text-lg font-bold text-gray-700 mb-4">จำนวนนักศึกษา ปีการศึกษา 2568</h3>
+                <div class="relative h-64 w-full"><canvas id="yearChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="p-6 border-b flex flex-wrap gap-4 items-center justify-between">
+                <h3 class="text-lg font-bold">รายชื่อนักศึกษา</h3>
+                <div class="flex flex-wrap gap-3 w-full md:w-auto items-center">
+                    <select id="statusFilter" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"><option value="all">ทุกสถานะ</option></select>
+                    <select id="yearFilter" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"><option value="all">ทุกชั้นปี</option></select>
+                    <input type="text" id="searchInput" placeholder="ค้นหาชื่อ, รหัส..." class="px-3 py-2 border rounded-lg flex-1 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <button id="exportBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        ดาวน์โหลด .xls
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead class="bg-gray-50 text-sm text-gray-600">
+                        <tr>
+                            <th class="px-6 py-3 text-center w-16">ลำดับ</th>
+                            <th class="px-6 py-3">รหัสนักศึกษา</th>
+                            <th class="px-6 py-3">ชื่อ - นามสกุล</th>
+                            <th class="px-6 py-3 text-center">ชั้นปี</th>
+                            <th class="px-6 py-3 text-center">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y text-sm border-b border-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbzNFlDaLt_FQXGAVr5rnBP2tnQdcHcS36DOIG47qx2Zj18LkHyO4pYdL3V4cq00ons-/exec";
+        let globalData = [];
+        let currentFilteredData = [];
+        let statusChartInstance = null;
+        let yearChartInstance = null;
+        
+        Chart.register(ChartDataLabels);
+
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL);
+                globalData = await response.json();
+                currentFilteredData = [...globalData];
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+                populateFilters();
+                updateDashboard(globalData);
+            } catch (e) { console.error(e); }
+        }
+
+        function populateFilters() {
+            const statusSet = new Set(), yearSet = new Set();
+            globalData.forEach(s => { if(s.สถานะ) statusSet.add(s.สถานะ.trim()); if(s.ชั้นปี) yearSet.add(s.ชั้นปี.trim()); });
+            statusSet.forEach(s => document.getElementById('statusFilter').innerHTML += `<option value="${s}">${s}</option>`);
+            Array.from(yearSet).sort().forEach(y => document.getElementById('yearFilter').innerHTML += `<option value="${y}">ชั้นปี ${y}</option>`);
+        }
+
+        function updateDashboard(data) {
+            let active = data.filter(s => s.สถานะ.trim() === 'กำลังศึกษาอยู่').length;
+            let grad = data.filter(s => s.สถานะ.trim() === 'สำเร็จการศึกษา').length;
+            document.getElementById('active-students').textContent = active;
+            document.getElementById('graduated-students').textContent = grad;
+            document.getElementById('total-students').textContent = data.length;
+            document.getElementById('other-students').textContent = data.length - active - grad;
+            renderTable(data);
+            renderCharts(data);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = data.map((s, index) => {
+                let badgeClass = 'bg-amber-100 text-amber-800';
+                if(s.สถานะ.trim() === 'กำลังศึกษาอยู่') badgeClass = 'bg-blue-100 text-blue-800';
+                if(s.สถานะ.trim() === 'สำเร็จการศึกษา') badgeClass = 'bg-green-100 text-green-800';
+                const prefix = s['คำนำหน้า'] ? s['คำนำหน้า'].trim() + ' ' : '';
+                return `<tr class="hover:bg-gray-50"><td class="px-6 py-4 text-center text-gray-500">${index + 1}</td><td class="px-6 py-4 font-medium text-teal-700">${s.รหัสนักศึกษา}</td><td class="px-6 py-4 text-gray-800">${prefix + s['ชื่อ - นามสกุล']}</td><td class="px-6 py-4 text-center">${s.ชั้นปี}</td><td class="px-6 py-4 text-center"><span class="px-3 py-1 text-xs font-semibold rounded-full ${badgeClass}">${s.สถานะ}</span></td></tr>`;
+            }).join('');
+        }
+
+        function renderCharts(data) {
+            let statusCounts = {}, activeYearCounts = {};
+            data.forEach(s => {
+                const status = (s.สถานะ || '').trim(), year = (s.ชั้นปี || '').trim(), yearLabel = year ? `ปี ${year}` : 'ไม่ระบุ';
+                let gender = s.เพศ?.trim() || ((s['คำนำหน้า']?.trim() === 'นาย') ? 'ชาย' : 'หญิง');
+                if(status) statusCounts[status] = (statusCounts[status] || 0) + 1;
+                if(status === 'กำลังศึกษาอยู่' || status === 'สำเร็จการศึกษา') {
+                    if(!activeYearCounts[yearLabel]) activeYearCounts[yearLabel] = { ชาย: 0, หญิง: 0 };
+                    if(gender === 'ชาย') activeYearCounts[yearLabel].ชาย += 1; else activeYearCounts[yearLabel].หญิง += 1;
+                }
+            });
+
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            const statusLabels = ['นักศึกษาทั้งหมด', 'กำลังศึกษาอยู่', 'ลาออก', 'พักการศึกษา', 'เสียชีวิต', 'สำเร็จการศึกษา'];
+            const statusData = statusLabels.map(label => label === 'นักศึกษาทั้งหมด' ? data.length : (statusCounts[label] || 0));
+            if(statusChartInstance) statusChartInstance.destroy();
+            statusChartInstance = new Chart(ctxStatus, {
+                type: 'bar',
+                data: { labels: statusLabels, datasets: [{ data: statusData, backgroundColor: ['#0d9488', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#10b981'] }] },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', font: { weight: 'bold' }, formatter: (v, c) => { let t = c.chart.data.datasets[0].data.reduce((a,b)=>a+b,0); return `${v} (${((v/t)*100).toFixed(1)}%)`; } } },
+                    scales: { x: { beginAtZero: true, grace: '25%' } }
+                }
+            });
+
+            const ctxYear = document.getElementById('yearChart').getContext('2d');
+            if(yearChartInstance) yearChartInstance.destroy();
+            yearChartInstance = new Chart(ctxYear, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(activeYearCounts).sort(),
+                    datasets: [
+                        { label: 'ชาย', data: Object.keys(activeYearCounts).sort().map(y=>activeYearCounts[y].ชาย), backgroundColor: '#3b82f6' },
+                        { label: 'หญิง', data: Object.keys(activeYearCounts).sort().map(y=>activeYearCounts[y].หญิง), backgroundColor: '#ec4899' }
+                    ]
+                },
+                options: {
+                    layout: { padding: { top: 48 } }, // เพิ่มพื้นที่ด้านบนสำหรับตัวเลขรวม
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        datalabels: { 
+                            color: '#ffffff',
+                            anchor: 'center',
+                            align: 'center',
+                            clamp: true,
+                            clip: true,
+                            textAlign: 'center',
+                            font: { weight: 'bold', size: 11 }, 
+                            formatter: (v, c) => v > 0 ? `${v}\n(${((v/(c.chart.data.datasets[0].data[c.dataIndex]+c.chart.data.datasets[1].data[c.dataIndex])*100)||0).toFixed(0)}%)` : '' 
+                        }
+                    },
+                    scales: { 
+                        x: { stacked: false }, // แยกแท่งกราฟซ้าย-ขวา ไม่ซ้อนทับ
+                        y: { stacked: false, beginAtZero: true, grace: '35%' } // เผื่อพื้นที่แกน Y 
+                    }
+                },
+                plugins: [{
+                    id: 'totalText',
+                    afterDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        chart.data.labels.forEach((l, i) => {
+                            let total = 0;
+                            let meta0 = chart.getDatasetMeta(0);
+                            let meta1 = chart.getDatasetMeta(1);
+                            
+                            // คำนวณผลรวม
+                            if (!meta0.hidden) total += chart.data.datasets[0].data[i];
+                            if (!meta1.hidden) total += chart.data.datasets[1].data[i];
+
+                            if (total > 0) {
+                                let xCenter, minY;
+                                
+                                // คำนวณจุดกึ่งกลางและความสูงสูงสุดของแท่งกราฟเพื่อวางตัวเลขรวม
+                                if (!meta0.hidden && !meta1.hidden) {
+                                    xCenter = (meta0.data[i].x + meta1.data[i].x) / 2;
+                                    minY = Math.min(meta0.data[i].y, meta1.data[i].y);
+                                } else if (!meta0.hidden) {
+                                    xCenter = meta0.data[i].x;
+                                    minY = meta0.data[i].y;
+                                } else {
+                                    xCenter = meta1.data[i].x;
+                                    minY = meta1.data[i].y;
+                                }
+                                
+                                ctx.fillStyle = '#111827'; 
+                                ctx.textAlign = 'center'; 
+                                ctx.font = 'bold 13px Sarabun'; 
+                                ctx.fillText(`รวม: ${total}`, xCenter, minY - 14); // วางตัวเลขเหนือแท่งกราฟ
+                            }
+                        });
+                    }
+                }]
+            });
+        }
+
+        function filterData() {
+            const status = document.getElementById('statusFilter').value, year = document.getElementById('yearFilter').value, search = document.getElementById('searchInput').value.toLowerCase();
+            currentFilteredData = globalData.filter(s => (status === 'all' || s.สถานะ.trim() === status) && (year === 'all' || String(s.ชั้นปี).trim() === year) && ((s['คำนำหน้า']?.trim() + ' ' + s['ชื่อ - นามสกุล']).toLowerCase().includes(search) || String(s.รหัสนักศึกษา).includes(search)));
+            updateDashboard(currentFilteredData);
+        }
+
+        function exportToExcel() {
+            const worksheet = XLSX.utils.json_to_sheet(currentFilteredData.map((s,i)=>({ 'ลำดับ': i+1, 'รหัสนักศึกษา': s.รหัสนักศึกษา, 'ชื่อ-นามสกุล': (s['คำนำหน้า']||'')+s['ชื่อ - นามสกุล'], 'ชั้นปี': s.ชั้นปี, 'สถานะ': s.สถานะ })));
+            const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "รายชื่อ"); XLSX.writeFile(workbook, "ข้อมูลนักศึกษา.xlsx");
+        }
+
+        document.getElementById('statusFilter').addEventListener('change', filterData);
+        document.getElementById('yearFilter').addEventListener('change', filterData);
+        document.getElementById('searchInput').addEventListener('input', filterData);
+        document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
